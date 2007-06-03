@@ -3,6 +3,7 @@ module Main where
 import Debug.Trace
 import Graphics.UI.SDL as SDL
 import Graphics.UI.SDL.Image as Image
+import Graphics.UI.SDL.Framerate as Framerate
 import Foreign
 import Data.Typeable
 import Data.Char
@@ -12,12 +13,14 @@ import System.Environment
 import System.Exit
 import System.Random
 
-screenw = 640
-screenh = 480
+screenw     = 640
+screenh     = 480
 screendepth = 16
+framerate   = 40 -- (hz)
 
 data Game = Game {
       running :: Bool,
+      fpsmgr :: FPSManager,
       leftDown :: Bool,
       rightDown :: Bool,
       bat :: Bat,
@@ -42,52 +45,57 @@ data Ball = Ball {
       ballh :: Int
 }
 
-newGame = Game True False False newBat newBall
+newGame fpsmgr = Game True fpsmgr False False newBat newBall
 newBat  = Bat (div screenw 2) (screenh-h-30) 0 0 3 w h where w = 60; h = 10
 newBall = Ball 0 0 2 2 2 10 10
 
-main =
-    do 
-      -- init
+main = initialize >>= mainloop
+ 
+initialize :: IO (IORef Game)
+initialize =
+    do
       SDL.init [InitVideo]
-      screen <- setVideoMode screenw screenh screendepth [SWSurface]
+      setVideoMode screenw screenh screendepth [SWSurface]
       setCaption "Breakout" ""
       enableUnicode True
-      gameref <- newIORef newGame
-      -- main loop
-      mainloop gameref
+      fpsmgr <- Framerate.new
+      Framerate.init fpsmgr
+      Framerate.set fpsmgr framerate
+      gameref <- newIORef $ newGame fpsmgr
+      return gameref
 
 mainloop gameref =
     do 
-      delay 5
-      event <- pollEvent
-      game@(Game _ l r 
-            (Bat batx baty batvx batvy batstep batw bath)
-            (Ball ballx bally ballvx ballvy ballstep ballw ballh)) <- readIORef gameref
-      let game = case event of
-            KeyDown (Keysym SDLK_q _ _)     -> Game False l     r     (Bat batx baty 0     0     batstep batw bath) (Ball ballx bally ballvx ballvy ballstep ballw ballh)
-            Quit                            -> Game False l     r     (Bat batx baty 0     0     batstep batw bath) (Ball ballx bally ballvx ballvy ballstep ballw ballh)
-            KeyDown (Keysym SDLK_LEFT _ _)  -> Game True  True  r     (Bat batx baty batvx batvy batstep batw bath) (Ball ballx bally ballvx ballvy ballstep ballw ballh)
-            KeyUp   (Keysym SDLK_LEFT _ _)  -> Game True  False r     (Bat batx baty batvx batvy batstep batw bath) (Ball ballx bally ballvx ballvy ballstep ballw ballh)
-            KeyDown (Keysym SDLK_RIGHT _ _) -> Game True  l     True  (Bat batx baty batvx batvy batstep batw bath) (Ball ballx bally ballvx ballvy ballstep ballw ballh)
-            KeyUp   (Keysym SDLK_RIGHT _ _) -> Game True  l     False (Bat batx baty batvx batvy batstep batw bath) (Ball ballx bally ballvx ballvy ballstep ballw ballh)
-            otherwise                       -> Game True  l     r     (Bat batx baty batvx batvy batstep batw bath) (Ball ballx bally ballvx ballvy ballstep ballw ballh)
-      let game' = step game
-      display game'
-      writeIORef gameref game'
-      when (running game') (do mainloop gameref)
+      game <- readIORef gameref
+      game' <- getinput game
+      let game = step game'
+      display game
+      Framerate.delay $ fpsmgr game
+      writeIORef gameref game
+      when (running game) (do mainloop gameref)
 
-step (Game running l r 
-            (Bat batx baty batvx batvy batstep batw bath)
-            (Ball ballx bally ballvx ballvy ballstep ballw ballh)) =
-    Game running l r 
-         (Bat batx' baty' batvx''' batvy' batstep batw bath)
-         (Ball ballx' bally' ballvx' ballvy' ballstep ballw ballh)
+getinput game =
+    do
+      event <- pollEvent
+      return $ case event of
+            KeyDown (Keysym SDLK_q _ _)     -> game{running=False}
+            Quit                            -> game{running=False}
+            KeyDown (Keysym SDLK_LEFT _ _)  -> game{leftDown=True}
+            KeyUp   (Keysym SDLK_LEFT _ _)  -> game{leftDown=False}
+            KeyDown (Keysym SDLK_RIGHT _ _) -> game{rightDown=True}
+            KeyUp   (Keysym SDLK_RIGHT _ _) -> game{rightDown=False}
+            otherwise                       -> game
+
+step game@(Game _ _ leftDown rightDown
+           bat@(Bat batx baty batvx batvy batstep batw bath)
+           ball@(Ball ballx bally ballvx ballvy ballstep ballw ballh)) =
+    game{bat=bat', ball=ball'}
     where
-      batvx' = if l then (-batstep) else 0
-      batvx'' = if r then (batvx'+batstep) else batvx'
+      batvx' = if leftDown then (-batstep) else 0
+      batvx'' = if rightDown then (batvx'+batstep) else batvx'
       (batx',batvx''') = incrementWithBounce batx  batvx'' 0 (screenw-batw)
       (baty',batvy')   = incrementWithBounce baty  batvy   0 (screenh-bath)
+      bat' = bat{batx=batx',baty=baty',batvx=batvx''',batvy=batvy'}
       (ballx',ballvx') = incrementWithBounce ballx ballvx  0 (screenw-ballw)
       (bally',ballvy') = if (and [ballx >= batx-ballw, 
                                   ballx <= (batx+batw), 
@@ -96,6 +104,7 @@ step (Game running l r
                                   ballvy > 0])
                          then incrementWithBounce bally ballvy 0 (baty-ballh)
                          else incrementWithBounce bally ballvy 0 (screenh-ballh)
+      ball' = ball{ballx=ballx',bally=bally',ballvx=ballvx',ballvy=ballvy'}
 
 incrementWithBounce :: Int -> Int -> Int -> Int -> (Int, Int)
 incrementWithBounce val inc lo hi =
@@ -104,9 +113,9 @@ incrementWithBounce val inc lo hi =
     else if v > hi then (hi-(v-hi), -inc)
          else (v,inc)
 
-display (Game running l r 
-            (Bat batx baty batvx batvy batstep batw bath)
-            (Ball ballx bally ballvx ballvy ballstep ballw ballh)) =
+display (Game _ _ _ _
+         (Bat batx baty _ _ _ batw bath)
+         (Ball ballx bally _ _ _ ballw ballh)) =
     do 
       screen <- getVideoSurface
       let format = surfaceGetPixelFormat screen
