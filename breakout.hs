@@ -16,7 +16,7 @@ import System.Random
 screenw     = 640
 screenh     = 480
 screendepth = 16
-framerate   = 40 -- (hz)
+framerate   = 30 -- (hz)
 batfriction = 0.1
 
 data Game = Game {
@@ -73,6 +73,7 @@ mainloop gameref =
       let game = step game'
       display game
       Framerate.delay $ fpsmgr game
+      -- SDL.delay 10
       writeIORef gameref game
       when (running game) (do mainloop gameref)
 
@@ -107,7 +108,9 @@ step game@(Game _ _ leftDown rightDown
                                   ballvy > 0])
                          then incrementWithBounce bally ballvy 0 (baty-ballh)
                          else incrementWithBounce bally ballvy 0 (screenh-ballh)
-      ball' = ball{ballx=ballx',bally=bally',ballvx=ballvx',ballvy=ballvy'}
+      ball' = if (bally+ballvy) >= (screenh-ballh) 
+              then newBall
+              else ball{ballx=ballx',bally=bally',ballvx=ballvx',ballvy=ballvy'}
 
 incrementWithBounce :: Int -> Int -> Int -> Int -> (Int, Int)
 incrementWithBounce val inc lo hi =
