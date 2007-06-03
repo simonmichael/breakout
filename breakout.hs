@@ -17,6 +17,7 @@ screenw     = 640
 screenh     = 480
 screendepth = 16
 framerate   = 40 -- (hz)
+batfriction = 0.1
 
 data Game = Game {
       running :: Bool,
@@ -31,7 +32,8 @@ data Bat = Bat {
       baty :: Int,
       batvx :: Int,
       batvy :: Int,
-      batstep :: Int,
+      batmaxspeed :: Int,
+      bataccel :: Int,
       batw :: Int,
       bath :: Int
 }
@@ -46,8 +48,8 @@ data Ball = Ball {
 }
 
 newGame fpsmgr = Game True fpsmgr False False newBat newBall
-newBat  = Bat (div screenw 2) (screenh-h-30) 0 0 3 w h where w = 60; h = 10
-newBall = Ball 0 0 2 2 2 10 10
+newBat  = Bat (div screenw 2) (screenh-h-30) 0 0 15 1 w h where w = 60; h = 10
+newBall = Ball 0 0 4 4 0 10 10
 
 main = initialize >>= mainloop
  
@@ -87,13 +89,14 @@ getinput game =
             otherwise                       -> game
 
 step game@(Game _ _ leftDown rightDown
-           bat@(Bat batx baty batvx batvy batstep batw bath)
+           bat@(Bat batx baty batvx batvy batmaxspeed bataccel batw bath)
            ball@(Ball ballx bally ballvx ballvy ballstep ballw ballh)) =
     game{bat=bat', ball=ball'}
     where
-      batvx' = if leftDown then (-batstep) else 0
-      batvx'' = if rightDown then (batvx'+batstep) else batvx'
-      (batx',batvx''') = incrementWithBounce batx  batvx'' 0 (screenw-batw)
+      batvx' = if leftDown then (max (batvx-bataccel) (-batmaxspeed)) else batvx
+      batvx'' = if rightDown then (min (batvx'+bataccel) (batmaxspeed)) else batvx'
+      batvx''' = if (and [not leftDown, not rightDown]) then truncate(fromIntegral batvx'' * (1.0-batfriction)) else batvx''
+      (batx',batvx'''') = incrementWithBounce batx  batvx''' 0 (screenw-batw)
       (baty',batvy')   = incrementWithBounce baty  batvy   0 (screenh-bath)
       bat' = bat{batx=batx',baty=baty',batvx=batvx''',batvy=batvy'}
       (ballx',ballvx') = incrementWithBounce ballx ballvx  0 (screenw-ballw)
@@ -114,7 +117,7 @@ incrementWithBounce val inc lo hi =
          else (v,inc)
 
 display (Game _ _ _ _
-         (Bat batx baty _ _ _ batw bath)
+         (Bat batx baty _ _ _ _ batw bath)
          (Ball ballx bally _ _ _ ballw ballh)) =
     do 
       screen <- getVideoSurface
