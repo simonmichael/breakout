@@ -52,23 +52,10 @@ data Ball = Ball {
       ballh :: Int
 }
 
--- some type sigs:
--- newGame :: FPSManager -> Game
--- newBat :: Bat
--- main :: IO ()
--- initialize :: IO Game
--- mainloop :: Game -> IO ()
--- getinput :: Game -> IO Game
--- step :: Game -> Game
--- incrementWithBounce :: Int -> Int -> Int -> Int -> (Int, Int)
--- display :: Game -> IO ()
-
-newGame fpsmgr = Game True fpsmgr screenwidth screenheight False False newBat newBall
-newBat  = Bat (div screenwidth 2) (screenheight-h-40) 0 0 10 1 w h where w = 60; h = 10
-newBall = Ball 0 0 4 4 0 8 8
-
+main :: IO ()
 main = initialize >>= mainloop
  
+initialize :: IO Game
 initialize =
     do
       SDL.init [InitVideo]
@@ -80,6 +67,12 @@ initialize =
       Framerate.set fpsmgr framerate
       return $ newGame fpsmgr
 
+newGame :: FPSManager -> Game
+newGame fpsmgr = Game True fpsmgr screenwidth screenheight False False newBat newBall
+newBat  = Bat (div screenwidth 2) (screenheight-h-40) 0 0 10 1 w h where w = 60; h = 10
+newBall = Ball 0 0 4 4 0 8 8
+
+mainloop :: Game -> IO ()
 mainloop game =
     do 
       event <- pollEvent
@@ -87,8 +80,9 @@ mainloop game =
       let game = step game'
       Framerate.delay $ fpsmgr game
       display game
-      when (running game) (do mainloop game)
+      when (running game) $ do mainloop game
 
+handleevent :: Game -> Event -> IO Game
 handleevent game (Quit)                            = return game{running=False}
 handleevent game (KeyDown (Keysym SDLK_q _ _))     = return game{running=False}
 handleevent game (KeyDown (Keysym SDLK_LEFT _ _))  = return game{leftDown=True}
@@ -101,6 +95,7 @@ handleevent game (VideoResize w h)                 =
       return game{screenw=w,screenh=h}
 handleevent game _ = return game
 
+step :: Game -> Game
 step game@(Game _ _ screenw screenh leftDown rightDown
            bat@(Bat batx baty batvx batvy batmaxspeed bataccel batw bath)
            ball@(Ball ballx bally ballvx ballvy ballmaxspeed ballw ballh)) =
@@ -137,6 +132,7 @@ incrementWithStop val inc lo hi =
     else if v > hi then (hi, -inc)
          else (v,inc)
 
+display :: Game -> IO ()
 display (Game _ _ _ _ _ _
          (Bat batx baty _ _ _ _ batw bath)
          (Ball ballx bally _ _ _ ballw ballh)) =
