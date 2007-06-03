@@ -1,3 +1,5 @@
+-- breakout prototype in haskell using SDL
+
 module Main where
 
 import Debug.Trace
@@ -13,15 +15,18 @@ import System.Environment
 import System.Exit
 import System.Random
 
-screenw     = 640
-screenh     = 480
+screenwidth  = 640
+screenheight = 480
 screendepth = 16
+screenmode = [SWSurface,Resizable]
 framerate   = 30 -- (hz)
 batfriction = 0.1
 
 data Game = Game {
       running :: Bool,
       fpsmgr :: FPSManager,
+      screenw :: Int,
+      screenh :: Int,
       leftDown :: Bool,
       rightDown :: Bool,
       bat :: Bat,
@@ -42,63 +47,70 @@ data Ball = Ball {
       bally :: Int,
       ballvx :: Int,
       ballvy :: Int,
-      ballstep :: Int,
+      ballmaxspeed :: Int,
       ballw :: Int,
       ballh :: Int
 }
 
-newGame fpsmgr = Game True fpsmgr False False newBat newBall
-newBat  = Bat (div screenw 2) (screenh-h-30) 0 0 15 1 w h where w = 60; h = 10
-newBall = Ball 0 0 4 4 0 10 10
+-- some type sigs:
+-- newGame :: FPSManager -> Game
+-- newBat :: Bat
+-- main :: IO ()
+-- initialize :: IO Game
+-- mainloop :: Game -> IO ()
+-- getinput :: Game -> IO Game
+-- step :: Game -> Game
+-- incrementWithBounce :: Int -> Int -> Int -> Int -> (Int, Int)
+-- display :: Game -> IO ()
+
+newGame fpsmgr = Game True fpsmgr screenwidth screenheight False False newBat newBall
+newBat  = Bat (div screenwidth 2) (screenheight-h-40) 0 0 10 1 w h where w = 60; h = 10
+newBall = Ball 0 0 4 4 0 8 8
 
 main = initialize >>= mainloop
  
-initialize :: IO (IORef Game)
 initialize =
     do
       SDL.init [InitVideo]
-      setVideoMode screenw screenh screendepth [SWSurface]
+      setVideoMode screenwidth screenheight screendepth screenmode
       setCaption "Breakout" ""
       enableUnicode True
       fpsmgr <- Framerate.new
       Framerate.init fpsmgr
       Framerate.set fpsmgr framerate
-      gameref <- newIORef $ newGame fpsmgr
-      return gameref
+      return $ newGame fpsmgr
 
-mainloop gameref =
+mainloop game =
     do 
-      game <- readIORef gameref
-      game' <- getinput game
-      let game = step game'
-      display game
-      Framerate.delay $ fpsmgr game
-      -- SDL.delay 10
-      writeIORef gameref game
-      when (running game) (do mainloop gameref)
-
-getinput game =
-    do
       event <- pollEvent
-      return $ case event of
-            KeyDown (Keysym SDLK_q _ _)     -> game{running=False}
-            Quit                            -> game{running=False}
-            KeyDown (Keysym SDLK_LEFT _ _)  -> game{leftDown=True}
-            KeyUp   (Keysym SDLK_LEFT _ _)  -> game{leftDown=False}
-            KeyDown (Keysym SDLK_RIGHT _ _) -> game{rightDown=True}
-            KeyUp   (Keysym SDLK_RIGHT _ _) -> game{rightDown=False}
-            otherwise                       -> game
+      game' <- handleevent game event
+      let game = step game'
+      Framerate.delay $ fpsmgr game
+      display game
+      when (running game) (do mainloop game)
 
-step game@(Game _ _ leftDown rightDown
+handleevent game (Quit)                            = return game{running=False}
+handleevent game (KeyDown (Keysym SDLK_q _ _))     = return game{running=False}
+handleevent game (KeyDown (Keysym SDLK_LEFT _ _))  = return game{leftDown=True}
+handleevent game (KeyUp   (Keysym SDLK_LEFT _ _))  = return game{leftDown=False}
+handleevent game (KeyDown (Keysym SDLK_RIGHT _ _)) = return game{rightDown=True}
+handleevent game (KeyUp   (Keysym SDLK_RIGHT _ _)) = return game{rightDown=False}
+handleevent game (VideoResize w h)                 = 
+    do
+      setVideoMode w h screendepth screenmode
+      return game{screenw=w,screenh=h}
+handleevent game _ = return game
+
+step game@(Game _ _ screenw screenh leftDown rightDown
            bat@(Bat batx baty batvx batvy batmaxspeed bataccel batw bath)
-           ball@(Ball ballx bally ballvx ballvy ballstep ballw ballh)) =
+           ball@(Ball ballx bally ballvx ballvy ballmaxspeed ballw ballh)) =
     game{bat=bat', ball=ball'}
     where
       batvx' = if leftDown then (max (batvx-bataccel) (-batmaxspeed)) else batvx
       batvx'' = if rightDown then (min (batvx'+bataccel) (batmaxspeed)) else batvx'
       batvx''' = if (and [not leftDown, not rightDown]) then truncate(fromIntegral batvx'' * (1.0-batfriction)) else batvx''
-      (batx',batvx'''') = incrementWithBounce batx  batvx''' 0 (screenw-batw)
-      (baty',batvy')   = incrementWithBounce baty  batvy   0 (screenh-bath)
+      (batx',batvx'''') = incrementWithStop batx  batvx''' 0 (screenw-batw)
+      (baty',batvy') = (screenh-bath-40, 0)
       bat' = bat{batx=batx',baty=baty',batvx=batvx''',batvy=batvy'}
       (ballx',ballvx') = incrementWithBounce ballx ballvx  0 (screenw-ballw)
       (bally',ballvy') = if (and [ballx >= batx-ballw, 
@@ -119,7 +131,13 @@ incrementWithBounce val inc lo hi =
     else if v > hi then (hi-(v-hi), -inc)
          else (v,inc)
 
-display (Game _ _ _ _
+incrementWithStop val inc lo hi =
+    let v = val + inc in
+    if v < lo then (lo, -inc)
+    else if v > hi then (hi, -inc)
+         else (v,inc)
+
+display (Game _ _ _ _ _ _
          (Bat batx baty _ _ _ _ batw bath)
          (Ball ballx bally _ _ _ ballw ballh)) =
     do 
