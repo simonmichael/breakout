@@ -1,11 +1,12 @@
 -- breakout prototype in haskell using SDL
 
+
 module Main where
 
-import Debug.Trace
 import Graphics.UI.SDL as SDL
 import Graphics.UI.SDL.Image as Image
 import Graphics.UI.SDL.Framerate as Framerate
+import Graphics.UI.SDL.Mixer as Mixer
 import Foreign
 import Data.Typeable
 import Data.Char
@@ -15,12 +16,40 @@ import System.Environment
 import System.Exit
 import System.Random
 
-screenwidth  = 640
-screenheight = 480
-screendepth = 16
-screenmode = [SWSurface,Resizable]
-framerate   = 30 -- (hz)
-batfriction = 0.1
+-- debugging
+import Debug.Trace
+
+-- | trace (print on stdout at runtime) a showable expression
+-- (for easily tracing in the middle of a complex expression)
+strace :: Show a => a -> a
+strace a = trace (show a) a
+
+-- | labelled trace - like strace, with a label prepended
+ltrace :: Show a => String -> a -> a
+ltrace l a = trace (l ++ ": " ++ show a) a
+
+-- | monadic trace - like strace, but works as a standalone line in a monad
+mtrace :: (Monad m, Show a) => a -> m a
+mtrace a = strace a `seq` return a
+
+-- | trace an expression using a custom show function
+tracewith f e = trace (f e) e
+
+--
+
+screenwidth  = 400
+screenheight = 400
+screendepth = 32
+screenmode = [SWSurface,DoubleBuf,Resizable]
+
+-- screenwidth  = 1680
+-- screenheight = 1050
+-- screendepth = 32
+-- screenmode = [HWSurface,DoubleBuf,Fullscreen]
+
+framerate   = 60 -- (hz)
+batfriction = 0.2
+defbataccel = 2
 
 data Game = Game {
       running :: Bool,
@@ -58,7 +87,7 @@ main = initialize >>= mainloop
 initialize :: IO Game
 initialize =
     do
-      SDL.init [InitVideo]
+      SDL.init [InitVideo,InitAudio]
       setVideoMode screenwidth screenheight screendepth screenmode
       setCaption "Breakout" ""
       enableUnicode True
@@ -69,18 +98,16 @@ initialize =
 
 newGame :: FPSManager -> Game
 newGame fpsmgr = Game True fpsmgr screenwidth screenheight False False newBat newBall
-newBat  = Bat (div screenwidth 2) (screenheight-h-40) 0 0 10 1 w h where w = 60; h = 10
-newBall = Ball 0 0 4 4 0 8 8
+newBat  = Bat (div screenwidth 2) (screenheight-h-40) 0 0 10 defbataccel w h where w = 60; h = 10
+newBall = Ball 0 0 1 1 0 8 8
 
 mainloop :: Game -> IO ()
-mainloop game =
-    do 
-      event <- pollEvent
-      game' <- handleevent game event
-      let game = step game'
-      Framerate.delay $ fpsmgr game
-      display game
-      when (running game) $ do mainloop game
+mainloop game = do
+  game' <- pollEvent >>= handleevent game
+  let game'' = step game'
+  -- Framerate.delay $ fpsmgr game''
+  display game''
+  unless (not (running game'')) $ mainloop game''
 
 handleevent :: Game -> Event -> IO Game
 handleevent game (Quit)                            = return game{running=False}
@@ -99,7 +126,9 @@ step :: Game -> Game
 step game@(Game _ _ screenw screenh leftDown rightDown
            bat@(Bat batx baty batvx batvy batmaxspeed bataccel batw bath)
            ball@(Ball ballx bally ballvx ballvy ballmaxspeed ballw ballh)) =
-    game{bat=bat', ball=ball'}
+    game{bat=bat', ball=ball'
+       -- ,running=bally < baty -- for profiling
+        }
     where
       batvx' = if leftDown then (max (batvx-bataccel) (-batmaxspeed)) else batvx
       batvx'' = if rightDown then (min (batvx'+bataccel) (batmaxspeed)) else batvx'
