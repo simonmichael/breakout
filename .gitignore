@@ -2,4 +2,6 @@
 /old
 *.hi
 *.o
-TAGS
+/TAGS
+/stack.yaml.lock
+/dist-newstyle
