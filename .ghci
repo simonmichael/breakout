@@ -1,0 +1,2 @@
+-- allows SDL to start
+:set -fno-ghci-sandbox
