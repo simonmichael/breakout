@@ -53,7 +53,9 @@ framerate   = 60  -- fps
 screenwidth  = 400
 screenheight = 400
 batfriction = 0.2
-defbataccel = 2
+defbatmaxspeed = 5
+defbataccel = 1
+defballspeed = 4
 
 data Game = Game {
       window :: Window,
@@ -93,10 +95,10 @@ newGame :: Window -> Renderer -> Framerate.Manager -> Game
 newGame window renderer fpsmgr = Game window renderer fpsmgr True screenwidth screenheight False False newBat newBall
 
 newBat :: Bat
-newBat  = Bat (div screenwidth 2) (screenheight-h-40) 0 0 10 defbataccel w h where w = 60; h = 10
+newBat  = Bat (div screenwidth 2) (screenheight-h-40) 0 0 defbatmaxspeed defbataccel w h where w = 60; h = 10
 
 newBall :: Ball
-newBall = Ball 0 0 1 1 0 8 8
+newBall = Ball 0 0 defballspeed defballspeed 0 8 8
 
 main = do
   initializeAll
