@@ -11,30 +11,30 @@ import Types
 import Bat
 import Ball
 
--- app & game state
+-- app, window, game state
 data Game = Game {
-      window :: Window,
-      renderer :: Renderer,
-      fpsmgr :: Manager,
-      screenw :: CInt,
-      screenh :: CInt,
-      leftPressed :: Bool,
-      rightPressed :: Bool,
-      bat :: Bat,
-      ball :: Ball
+  gwindow :: Window,
+  grenderer :: Renderer,
+  gfpsmgr :: Manager,
+  gw :: CInt,
+  gh :: CInt,
+  gleftPressed :: Bool,
+  grightPressed :: Bool,
+  gbat :: Bat,
+  gball :: Ball
 }
 
 newGame :: Window -> Renderer -> Manager -> CInt -> CInt -> Game
-newGame window renderer fpsmgr screenw screenh = Game {
-  window = window,
-  renderer = renderer,
-  fpsmgr = fpsmgr,
-  screenw = screenw,
-  screenh = screenh,
-  leftPressed = False,
-  rightPressed = False,
-  bat = newBat (div screenw 2) (screenh-defbatheight-40),
-  ball = newBall
+newGame window renderer fpsmgr width height = Game {
+  gwindow = window,
+  grenderer = renderer,
+  gfpsmgr = fpsmgr,
+  gw = width,
+  gh = height,
+  gleftPressed = False,
+  grightPressed = False,
+  gbat = newBat (div width 2) (height-defbatheight-40),
+  gball = newBall
 }
 
 gameHandleEvent :: Game -> Event -> IO Game
@@ -44,40 +44,40 @@ gameHandleEvent game event =
   case event of
     _
       --  | event `isKeyDn` KeycodeQ -> gameExit game >> return game
-      | event `isKeyDn` KeycodeLeft -> return game{leftPressed=True}
-      | event `isKeyUp` KeycodeLeft -> return game{leftPressed=False}
-      | event `isKeyDn` KeycodeRight -> return game{rightPressed=True}
-      | event `isKeyUp` KeycodeRight -> return game{rightPressed=False}
+      | event `isKeyDn` KeycodeLeft -> return game{gleftPressed=True}
+      | event `isKeyUp` KeycodeLeft -> return game{gleftPressed=False}
+      | event `isKeyDn` KeycodeRight -> return game{grightPressed=True}
+      | event `isKeyUp` KeycodeRight -> return game{grightPressed=False}
       | otherwise -> return game
 
 gameStep :: Game -> Game
-gameStep game@Game{screenw, screenh, leftPressed, rightPressed, bat=bat@Bat{..}, ball=ball@Ball{..}} =
-  game{bat=bat', ball=ball'}
+gameStep game@Game{gw, gh, gleftPressed, grightPressed, gbat=bat@Bat{..}, gball=ball@Ball{..}} =
+  game{gbat=bat', gball=ball'}
   where
     bat' = gameStepBat game bat
     ball' = gameStepBall game ball
 
 gameStepBat :: Game -> Bat -> Bat
-gameStepBat game@Game{screenw, screenh, leftPressed, rightPressed} bat@Bat{..} = bat'
+gameStepBat game@Game{gw, gh, gleftPressed, grightPressed} bat@Bat{..} = bat'
   where
-    batvx' = if leftPressed then (max (batvx-bataccel) (-batmaxspeed)) else batvx
-    batvx'' = if rightPressed then (min (batvx'+bataccel) (batmaxspeed)) else batvx'
-    batvx''' = if (and [not leftPressed, not rightPressed]) then truncate(fromIntegral batvx'' * (1.0-defbatfriction)) else batvx''
-    (batx',batvx'''') = incrementWithStop batx  batvx''' 0 (screenw-batw)
-    (baty',batvy') = (screenh-bath-40, 0)
-    bat' = bat{batx=batx',baty=baty',batvx=batvx''',batvy=batvy'}
+    btvx' = if gleftPressed then (max (btvx-btaccel) (-btmaxspeed)) else btvx
+    btvx'' = if grightPressed then (min (btvx'+btaccel) (btmaxspeed)) else btvx'
+    btvx''' = if (and [not gleftPressed, not grightPressed]) then truncate(fromIntegral btvx'' * (1.0-defbatfriction)) else btvx''
+    (btx',btvx'''') = incrementWithStop btx  btvx''' 0 (gw-btw)
+    (bty',btvy') = (gh-bth-40, 0)
+    bat' = bat{btx=btx',bty=bty',btvx=btvx''',btvy=btvy'}
 
 gameStepBall :: Game -> Ball -> Ball
-gameStepBall game@Game{screenw, screenh, leftPressed, rightPressed, bat=Bat{..}} ball@Ball{..} = ball'
+gameStepBall game@Game{gw, gh, gleftPressed, grightPressed, gbat=Bat{..}} ball@Ball{..} = ball'
   where
-    (ballx',ballvx') = incrementWithBounce ballx ballvx  0 (screenw-ballw)
-    (bally',ballvy') = if (and [ballx >= batx-ballw, 
-                                ballx <= (batx+batw), 
-                                bally >= (baty-ballh), 
-                                bally <= baty,
-                                ballvy > 0])
-                        then incrementWithBounce bally ballvy 0 (baty-ballh)
-                        else incrementWithBounce bally ballvy 0 (screenh-ballh)
-    ball' = if (bally+ballvy) >= (screenh-ballh) 
+    (bx',bvx') = incrementWithBounce bx bvx  0 (gw-bw)
+    (by',bvy') = if (and [bx >= btx-bw, 
+                                bx <= (btx+btw), 
+                                by >= (bty-bh), 
+                                by <= bty,
+                                bvy > 0])
+                        then incrementWithBounce by bvy 0 (bty-bh)
+                        else incrementWithBounce by bvy 0 (gh-bh)
+    ball' = if (by+bvy) >= (gh-bh) 
             then newBall
-            else ball{ballx=ballx',bally=bally',ballvx=ballvx',ballvy=ballvy'}
+            else ball{bx=bx',by=by',bvx=bvx',bvy=bvy'}

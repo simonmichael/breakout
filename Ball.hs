@@ -9,13 +9,13 @@ import Types
 
 -- a ball
 data Ball = Ball {
-      ballw :: CInt,
-      ballh :: CInt,
-      ballx :: CInt,
-      bally :: CInt,
-      ballvx :: CInt,
-      ballvy :: CInt,
-      ballmaxspeed :: CInt
+  bw :: CInt,
+  bh :: CInt,
+  bx :: CInt,
+  by :: CInt,
+  bvx :: CInt,
+  bvy :: CInt,
+  bmaxspeed :: CInt
 }
 
 defballspeed = 4
@@ -24,11 +24,11 @@ defballheight = 8
 
 newBall :: Ball
 newBall = Ball{
-  ballw = defballwidth,
-  ballh = defballheight,
-  ballx = 0,
-  bally = 0,
-  ballvx = defballspeed,
-  ballvy = defballspeed,
-  ballmaxspeed = 0
+  bw = defballwidth,
+  bh = defballheight,
+  bx = 0,
+  by = 0,
+  bvx = defballspeed,
+  bvy = defballspeed,
+  bmaxspeed = 0
 } 

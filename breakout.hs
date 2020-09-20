@@ -48,12 +48,12 @@ loop :: Game -> IO ()
 loop game@Game{..} = do
   events <- pollEvents
   when (any (flip isKeyDn KeycodeQ) events) $ do
-    destroyWindow window   -- get rid of window when in GHCI.. not working
+    destroyWindow gwindow   -- get rid of window when in GHCI.. not working
     exitSuccess
 
   game' <- foldM gameHandleEvent game events
-  let game''@Game{fpsmgr} = gameStep game'
-  delay <- Framerate.delay fpsmgr
+  let game''@Game{gfpsmgr} = gameStep game'
+  delay <- Framerate.delay gfpsmgr
 --   mtrace "delay" delay
   gameDraw game''
   loop game''

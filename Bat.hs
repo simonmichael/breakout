@@ -9,14 +9,14 @@ import Types
 
 -- a player bat
 data Bat = Bat {
-      batw :: CInt,
-      bath :: CInt,
-      batx :: CInt,
-      baty :: CInt,
-      batvx :: CInt,
-      batvy :: CInt,
-      batmaxspeed :: CInt,
-      bataccel :: CInt
+  btw :: CInt,
+  bth :: CInt,
+  btx :: CInt,
+  bty :: CInt,
+  btvx :: CInt,
+  btvy :: CInt,
+  btmaxspeed :: CInt,
+  btaccel :: CInt
 }
 
 defbatfriction = 0.2
@@ -27,12 +27,12 @@ defbatheight = 10
 
 newBat :: X -> Y -> Bat
 newBat x y = Bat{
-  batw = defbatwidth,
-  bath = defbatheight,
-  batx = x,
-  baty = y,
-  batvx = 0,
-  batvy = 0,
-  batmaxspeed = defbatmaxspeed,
-  bataccel = defbataccel
+  btw = defbatwidth,
+  bth = defbatheight,
+  btx = x,
+  bty = y,
+  btvx = 0,
+  btvy = 0,
+  btmaxspeed = defbatmaxspeed,
+  btaccel = defbataccel
 }
