@@ -67,7 +67,9 @@ gameStepBat game@Game{gsounds=Sounds{..}, gw, gh, gleftPressed, grightPressed} b
   where
     btvx' = if gleftPressed then (max (btvx-btaccel) (-btmaxspeed)) else btvx
     btvx'' = if grightPressed then (min (btvx'+btaccel) (btmaxspeed)) else btvx'
-    btvx''' = if (and [not gleftPressed, not grightPressed]) then truncate(fromIntegral btvx'' * (1.0-defbatfriction)) else btvx''
+    btvx''' = if (and [not gleftPressed, not grightPressed]) 
+              then truncate(fromIntegral btvx'' * (1.0-defbatfriction))  -- friction has little effect because of truncate
+              else btvx''
     (btx',btvx'''',hitwall) = incrementWithStop btx  btvx''' 0 (gw-btw)
     (bty',btvy') = (gh-bth-40, 0)
     bat' = bat{btx=btx',bty=bty',btvx=btvx'''',btvy=btvy'}

@@ -19,7 +19,7 @@ data Bat = Bat {
   btaccel :: CInt
 }
 
-defbatfriction = 0.2
+defbatfriction = 0.2  -- not much effect right now
 defbatmaxspeed = 5
 defbataccel = 2
 defbatwidth = 50
