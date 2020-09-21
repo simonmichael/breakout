@@ -38,30 +38,30 @@ type HighBound = CInt
 -- Add a signed increment to a value. If the lower or upper bound is reached,
 -- by this call: reflect off the bound, change the increment's sign, 
 -- and return a true "reached bound" flag.
--- All arguments are CInt, so callers should take care to avoid wrapping.
+-- All arguments are CInt, callers should take care to avoid wrapping.
 incrementWithBounce :: Value -> Increment -> LowBound -> HighBound -> (Value, Increment, Bool)
 incrementWithBounce vold inc lo hi = (v', inc', reachedbound)
     where
       v = vold + inc
-      (v', inc', atbound) = 
-            if v < lo then (lo+(lo-v), -inc, True)
-            else if v > hi then (hi-(v-hi), -inc, True)
-                           else (v,inc, False)
-      reachedbound = atbound && v' /= vold
+      (v', inc') = 
+            if v < lo then (lo+(lo-v), -inc)
+            else if v > hi then (hi-(v-hi), -inc)
+                           else (v,inc)
+      reachedbound = inc' /= inc
 
 -- Add a signed increment to a value. If the lower or upper bound is reached,
--- by this call: stop at the bound, change the increment's sign, 
+-- by this call: stop at the bound, change the increment to zero, 
 -- and return a true "reached bound" flag.
--- All arguments are CInt, so callers should take care to avoid wrapping.
+-- All arguments are CInt, callers should take care to avoid wrapping.
 incrementWithStop :: Value -> Increment -> LowBound -> HighBound -> (Value, Increment, Bool)
 incrementWithStop vold inc lo hi = (v', inc', reachedbound)
     where
       v = vold + inc
-      (v', inc', atbound) = 
-            if v < lo then (lo, -inc, True)
-            else if v > hi then (hi, -inc, True)
-                           else (v,inc, False)
-      reachedbound = atbound && v' /= vold
+      (v', inc') = 
+            if v <= lo then (lo, 0)
+            else if v >= hi then (hi,  0)
+                            else (v, inc)
+      reachedbound = inc' /= inc && v' /= vold
 
 -- sdl
 

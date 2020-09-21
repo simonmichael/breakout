@@ -68,16 +68,16 @@ gameStepBat game@Game{gsounds=Sounds{..}, gw, gh, gleftPressed, grightPressed} b
     btvx' = if gleftPressed then (max (btvx-btaccel) (-btmaxspeed)) else btvx
     btvx'' = if grightPressed then (min (btvx'+btaccel) (btmaxspeed)) else btvx'
     btvx''' = if (and [not gleftPressed, not grightPressed]) then truncate(fromIntegral btvx'' * (1.0-defbatfriction)) else btvx''
-    (btx',btvx'''',wallhit) = incrementWithStop btx  btvx''' 0 (gw-btw)
+    (btx',btvx'''',hitwall) = incrementWithStop btx  btvx''' 0 (gw-btw)
     (bty',btvy') = (gh-bth-40, 0)
-    bat' = bat{btx=btx',bty=bty',btvx=btvx''',btvy=btvy'}
-    sounds = [sndkickdrum1|wallhit]
+    bat' = bat{btx=btx',bty=bty',btvx=btvx'''',btvy=btvy'}
+    sounds = [sndkickdrum1|hitwall]
 
 gameStepBall :: Game -> Ball -> (Ball, [Chunk])
 gameStepBall game@Game{gsounds=Sounds{..}, gw, gh, gleftPressed, grightPressed, gbat=Bat{..}} ball@Ball{..} = (ball',sounds)
   where
-    (bx',bvx',xwallhit) = incrementWithBounce bx bvx  0 (gw-bw)
-    (by',bvy',ywallhit,bathit)
+    (bx',bvx',hitwallx) = incrementWithBounce bx bvx  0 (gw-bw)
+    (by',bvy',hitwally,hitbat)
       | and [bx >= btx-bw, 
               bx <= (btx+btw), 
               by >= (bty-bh), 
@@ -85,13 +85,13 @@ gameStepBall game@Game{gsounds=Sounds{..}, gw, gh, gleftPressed, grightPressed, 
               bvy > 0] = 
         let (x,y,_) = incrementWithBounce by bvy 0 (bty-bh) in (x,y,False,True)
       | otherwise = 
-        let (x,y,whit) = incrementWithBounce by bvy 0 (gh-bh) in (x,y,whit,False)
+        let (x,y,hitwally) = incrementWithBounce by bvy 0 (gh-bh) in (x,y,hitwally,False)
     (ball', newball) 
       | (by+bvy) >= (gh-bh) = (newBall, True)
       | otherwise = (ball{bx=bx',by=by',bvx=bvx',bvy=bvy'}, False)
     sounds =
-      [sndwall | xwallhit || ywallhit] ++
-      [sndpaddle | bathit] ++
+      [sndwall | hitwallx || hitwally] ++
+      [sndpaddle | hitbat] ++
       [sndbassdrum1 | newball]
 
 gamePlayNewSounds :: Game -> IO Game
