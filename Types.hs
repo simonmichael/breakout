@@ -6,4 +6,5 @@ import Foreign.C (CInt)
 
 -- increase to multiply the speed of everything (default 1),
 -- but be careful not to overflow CInt
-speedup = 1 :: CInt
+speedup :: CInt
+speedup = 1

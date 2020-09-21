@@ -4,6 +4,7 @@ module Ball
 where
 import Foreign.C (CInt)
 
+import Draw
 import Util
 import Types
 
@@ -32,3 +33,6 @@ newBall = Ball{
   bvy = defballspeed*speedup,
   bmaxspeed = 0
 } 
+
+ballDraw renderer Ball{..} = do
+  fillRectangle renderer (V2 bx by) (V2 (bx+bw) (by+bh)) white

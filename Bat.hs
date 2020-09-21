@@ -4,6 +4,7 @@ module Bat
 where
 import Foreign.C (CInt)
 
+import Draw
 import Util
 import Types
 
@@ -36,3 +37,7 @@ newBat x y = Bat{
   btmaxspeed = defbatmaxspeed*speedup,
   btaccel = defbataccel*speedup
 }
+
+batDraw renderer Bat{..} = do
+  fillRectangle renderer (V2 btx bty) (V2 (btx+btw) (bty+bth)) red
+  

@@ -6,11 +6,12 @@ import Foreign.C (CInt)
 import SDL hiding (trace)
 import SDL.Framerate (Manager)
 
-import Util
-import Types
-import Sound
 import Bat
 import Ball
+import Draw
+import Sound
+import Types
+import Util
 
 -- app, window, game state
 data Game = Game {
@@ -41,6 +42,13 @@ newGame window renderer fpsmgr sounds width height = Game {
   gbat = newBat (div width 2) (height-defbatheight-40),
   gball = newBall
 }
+
+gameDraw :: Game -> IO ()
+gameDraw Game{grenderer,gbat,gball} = do
+  rendererDrawColor grenderer $= black
+  clear grenderer
+  batDraw grenderer gbat
+  ballDraw grenderer gball
 
 gameHandleEvent :: Game -> Event -> IO Game
 gameHandleEvent game event =
