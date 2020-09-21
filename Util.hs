@@ -1,4 +1,7 @@
-module Util
+module Util (
+      module Util,
+      module Debug.Trace
+)
 where
 import Debug.Trace
 import SDL hiding (trace)
