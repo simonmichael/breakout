@@ -40,5 +40,6 @@ play' :: Sound -> IO ()
 play' snd = do
   -- XXX perhaps racy
   channelavailable <- isJust <$> getAvailable DefaultGroup
+  -- when (not channelavailable) $ mtrace "no sound channel" ()
   when channelavailable $ play snd
   
