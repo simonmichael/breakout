@@ -33,22 +33,22 @@ type LowBound = CInt
 type HighBound = CInt
 
 -- Add a signed increment to a value, reflecting off the lower or upper bound
--- (and negating the increment) if they are reached.
-incrementWithBounce :: Value -> Increment -> LowBound -> HighBound -> (Value, Increment)
+-- (and negating the increment, and returning a true bounced flag) if they are reached.
+incrementWithBounce :: Value -> Increment -> LowBound -> HighBound -> (Value, Increment, Bool)
 incrementWithBounce val inc lo hi =
     let v = val + inc in
-    if v < lo then (lo+(lo-v), -inc)
-    else if v > hi then (hi-(v-hi), -inc)
-         else (v,inc)
+    if v < lo then (lo+(lo-v), -inc, True)
+    else if v > hi then (hi-(v-hi), -inc, True)
+         else (v,inc, False)
 
 -- Add a signed increment to a value, stopping at the lower or upper bound
--- (and negating the increment) if they are reached.
-incrementWithStop :: Value -> Increment -> LowBound -> HighBound -> (Value, Increment)
+-- (and negating the increment, and returning a true stopped flag) if they are reached.
+incrementWithStop :: Value -> Increment -> LowBound -> HighBound -> (Value, Increment, Bool)
 incrementWithStop val inc lo hi =
     let v = val + inc in
-    if v < lo then (lo, -inc)
-    else if v > hi then (hi, -inc)
-         else (v,inc)
+    if v < lo then (lo, -inc, True)
+    else if v > hi then (hi, -inc, True)
+         else (v,inc, False)
 
 -- sdl
 

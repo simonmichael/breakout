@@ -23,6 +23,7 @@ executable sm-breakout
     Bat
     Ball
     Draw
+    Sound
     Types
     Util
     Import
@@ -34,4 +35,5 @@ executable sm-breakout
       ,sdl2 >=2.5 && <2.6
       ,sdl2-gfx >=0.2 && <0.3
       ,sdl2-image >=2.0 && <2.1
+      ,sdl2-mixer >=1.1.0 && <1.2
       ,text

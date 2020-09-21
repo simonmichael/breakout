@@ -13,6 +13,7 @@ import Control.Monad
 import Data.List (partition)
 import Data.Text (Text)
 import SDL hiding (trace)
+import SDL.Mixer
 import SDL.Primitive
 import qualified SDL.Framerate as Framerate
 import System.Exit (exitSuccess)
@@ -21,6 +22,7 @@ import Util
 import Types
 import Game
 import Draw
+import Sound
 
 progname = "breakout"
 
@@ -36,13 +38,14 @@ defscreenheight = 400
 main :: IO ()
 main = do
   initializeAll
-  window <- createWindow progname defaultWindow{ 
-    windowInitialSize = V2 defscreenwidth defscreenheight ,
-    windowPosition = Centered
-    }
-  renderer <- createRenderer window (-1) defaultRenderer{ rendererType = AcceleratedVSyncRenderer }
-  Framerate.with framerate $ \fpsmgr -> do
-    loop (newGame window renderer fpsmgr defscreenwidth defscreenheight)
+  withSounds $ \sounds@Sounds{..} -> do
+    window <- createWindow progname defaultWindow{ 
+      windowInitialSize = V2 defscreenwidth defscreenheight ,
+      windowPosition = Centered
+      }
+    renderer <- createRenderer window (-1) defaultRenderer{ rendererType = AcceleratedVSyncRenderer }
+    Framerate.with framerate $ \fpsmgr -> do
+      loop (newGame window renderer fpsmgr sounds defscreenwidth defscreenheight)
 
 loop :: Game -> IO ()
 loop game@Game{..} = do
@@ -52,7 +55,7 @@ loop game@Game{..} = do
     exitSuccess
 
   game' <- foldM gameHandleEvent game events
-  let game''@Game{gfpsmgr} = gameStep game'
+  game''@Game{gfpsmgr} <- gamePlayNewSounds $ gameStep game'
   delay <- Framerate.delay gfpsmgr
 --   mtrace "delay" delay
   gameDraw game''

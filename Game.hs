@@ -8,6 +8,7 @@ import SDL.Framerate (Manager)
 
 import Util
 import Types
+import Sound
 import Bat
 import Ball
 
@@ -16,6 +17,8 @@ data Game = Game {
   gwindow :: Window,
   grenderer :: Renderer,
   gfpsmgr :: Manager,
+  gsounds :: Sounds,
+  gtoplay :: [Chunk],
   gw :: CInt,
   gh :: CInt,
   gleftPressed :: Bool,
@@ -24,11 +27,13 @@ data Game = Game {
   gball :: Ball
 }
 
-newGame :: Window -> Renderer -> Manager -> CInt -> CInt -> Game
-newGame window renderer fpsmgr width height = Game {
+newGame :: Window -> Renderer -> Manager -> Sounds -> CInt -> CInt -> Game
+newGame window renderer fpsmgr sounds width height = Game {
   gwindow = window,
   grenderer = renderer,
   gfpsmgr = fpsmgr,
+  gsounds = sounds,
+  gtoplay = [],
   gw = width,
   gh = height,
   gleftPressed = False,
@@ -51,33 +56,46 @@ gameHandleEvent game event =
       | otherwise -> return game
 
 gameStep :: Game -> Game
-gameStep game@Game{gw, gh, gleftPressed, grightPressed, gbat=bat@Bat{..}, gball=ball@Ball{..}} =
-  game{gbat=bat', gball=ball'}
+gameStep game@Game{gtoplay, gw, gh, gleftPressed, grightPressed, gbat=bat@Bat{..}, gball=ball@Ball{..}} =
+  game{gbat=bat', gball=ball', gtoplay=gtoplay++batsounds++ballsounds}
   where
-    bat' = gameStepBat game bat
-    ball' = gameStepBall game ball
+    (bat',batsounds) = gameStepBat game bat
+    (ball',ballsounds) = gameStepBall game ball
 
-gameStepBat :: Game -> Bat -> Bat
-gameStepBat game@Game{gw, gh, gleftPressed, grightPressed} bat@Bat{..} = bat'
+gameStepBat :: Game -> Bat -> (Bat, [Chunk])
+gameStepBat game@Game{gsounds=Sounds{..}, gw, gh, gleftPressed, grightPressed} bat@Bat{..} = (bat',sounds)
   where
     btvx' = if gleftPressed then (max (btvx-btaccel) (-btmaxspeed)) else btvx
     btvx'' = if grightPressed then (min (btvx'+btaccel) (btmaxspeed)) else btvx'
     btvx''' = if (and [not gleftPressed, not grightPressed]) then truncate(fromIntegral btvx'' * (1.0-defbatfriction)) else btvx''
-    (btx',btvx'''') = incrementWithStop btx  btvx''' 0 (gw-btw)
+    (btx',btvx'''',wallhit) = incrementWithStop btx  btvx''' 0 (gw-btw)
     (bty',btvy') = (gh-bth-40, 0)
     bat' = bat{btx=btx',bty=bty',btvx=btvx''',btvy=btvy'}
+    sounds = [sndbassdrum1|wallhit]
 
-gameStepBall :: Game -> Ball -> Ball
-gameStepBall game@Game{gw, gh, gleftPressed, grightPressed, gbat=Bat{..}} ball@Ball{..} = ball'
+gameStepBall :: Game -> Ball -> (Ball, [Chunk])
+gameStepBall game@Game{gsounds=Sounds{..}, gw, gh, gleftPressed, grightPressed, gbat=Bat{..}} ball@Ball{..} = (ball',sounds)
   where
-    (bx',bvx') = incrementWithBounce bx bvx  0 (gw-bw)
-    (by',bvy') = if (and [bx >= btx-bw, 
-                                bx <= (btx+btw), 
-                                by >= (bty-bh), 
-                                by <= bty,
-                                bvy > 0])
-                        then incrementWithBounce by bvy 0 (bty-bh)
-                        else incrementWithBounce by bvy 0 (gh-bh)
-    ball' = if (by+bvy) >= (gh-bh) 
-            then newBall
-            else ball{bx=bx',by=by',bvx=bvx',bvy=bvy'}
+    (bx',bvx',xwallhit) = incrementWithBounce bx bvx  0 (gw-bw)
+    (by',bvy',ywallhit,bathit)
+      | and [bx >= btx-bw, 
+              bx <= (btx+btw), 
+              by >= (bty-bh), 
+              by <= bty,
+              bvy > 0] = 
+        let (x,y,_) = incrementWithBounce by bvy 0 (bty-bh) in (x,y,False,True)
+      | otherwise = 
+        let (x,y,whit) = incrementWithBounce by bvy 0 (gh-bh) in (x,y,whit,False)
+    (ball', newball) 
+      | (by+bvy) >= (gh-bh) = (newBall, True)
+      | otherwise = (ball{bx=bx',by=by',bvx=bvx',bvy=bvy'}, False)
+    sounds =
+      [sndwall | xwallhit || ywallhit] ++
+      [sndpaddle | bathit] ++
+      [sndding | newball]
+
+gamePlayNewSounds :: Game -> IO Game
+gamePlayNewSounds game@Game{gtoplay} = do
+  mapM_ play' gtoplay
+  return game{gtoplay=[]}
+
