@@ -71,7 +71,7 @@ gameStepBat game@Game{gsounds=Sounds{..}, gw, gh, gleftPressed, grightPressed} b
     (btx',btvx'''',wallhit) = incrementWithStop btx  btvx''' 0 (gw-btw)
     (bty',btvy') = (gh-bth-40, 0)
     bat' = bat{btx=btx',bty=bty',btvx=btvx''',btvy=btvy'}
-    sounds = []
+    sounds = [sndkickdrum1|wallhit]
 
 gameStepBall :: Game -> Ball -> (Ball, [Chunk])
 gameStepBall game@Game{gsounds=Sounds{..}, gw, gh, gleftPressed, grightPressed, gbat=Bat{..}} ball@Ball{..} = (ball',sounds)

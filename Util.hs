@@ -35,23 +35,33 @@ type Increment = CInt
 type LowBound = CInt
 type HighBound = CInt
 
--- Add a signed increment to a value, reflecting off the lower or upper bound
--- (and negating the increment, and returning a true bounced flag) if they are reached.
+-- Add a signed increment to a value. If the lower or upper bound is reached,
+-- by this call: reflect off the bound, change the increment's sign, 
+-- and return a true "reached bound" flag.
+-- All arguments are CInt, so callers should take care to avoid wrapping.
 incrementWithBounce :: Value -> Increment -> LowBound -> HighBound -> (Value, Increment, Bool)
-incrementWithBounce val inc lo hi =
-    let v = val + inc in
-    if v < lo then (lo+(lo-v), -inc, True)
-    else if v > hi then (hi-(v-hi), -inc, True)
-         else (v,inc, False)
+incrementWithBounce vold inc lo hi = (v', inc', reachedbound)
+    where
+      v = vold + inc
+      (v', inc', atbound) = 
+            if v < lo then (lo+(lo-v), -inc, True)
+            else if v > hi then (hi-(v-hi), -inc, True)
+                           else (v,inc, False)
+      reachedbound = atbound && v' /= vold
 
--- Add a signed increment to a value, stopping at the lower or upper bound
--- (and negating the increment, and returning a true stopped flag) if they are reached.
+-- Add a signed increment to a value. If the lower or upper bound is reached,
+-- by this call: stop at the bound, change the increment's sign, 
+-- and return a true "reached bound" flag.
+-- All arguments are CInt, so callers should take care to avoid wrapping.
 incrementWithStop :: Value -> Increment -> LowBound -> HighBound -> (Value, Increment, Bool)
-incrementWithStop val inc lo hi =
-    let v = val + inc in
-    if v < lo then (lo, -inc, True)
-    else if v > hi then (hi, -inc, True)
-         else (v,inc, False)
+incrementWithStop vold inc lo hi = (v', inc', reachedbound)
+    where
+      v = vold + inc
+      (v', inc', atbound) = 
+            if v < lo then (lo, -inc, True)
+            else if v > hi then (hi, -inc, True)
+                           else (v,inc, False)
+      reachedbound = atbound && v' /= vold
 
 -- sdl
 
