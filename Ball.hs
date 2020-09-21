@@ -28,7 +28,7 @@ newBall = Ball{
   bh = defballheight,
   bx = 0,
   by = 0,
-  bvx = defballspeed,
-  bvy = defballspeed,
+  bvx = defballspeed*speedup,
+  bvy = defballspeed*speedup,
   bmaxspeed = 0
 } 

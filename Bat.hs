@@ -21,7 +21,7 @@ data Bat = Bat {
 
 defbatfriction = 0.2
 defbatmaxspeed = 5
-defbataccel = 1
+defbataccel = 2
 defbatwidth = 50
 defbatheight = 10
 
@@ -33,6 +33,6 @@ newBat x y = Bat{
   bty = y,
   btvx = 0,
   btvy = 0,
-  btmaxspeed = defbatmaxspeed,
-  btaccel = defbataccel
+  btmaxspeed = defbatmaxspeed*speedup,
+  btaccel = defbataccel*speedup
 }
