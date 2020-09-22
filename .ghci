@@ -1,5 +1,7 @@
 -- allows SDL to start
 :set -fno-ghci-sandbox
 
+:set prompt "ghci> "
+
 :set -XOverloadedStrings
 :set -XRecordWildCards
