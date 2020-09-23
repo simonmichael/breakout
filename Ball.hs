@@ -20,19 +20,21 @@ data Ball = Ball {
 }
 
 defballspeed = 4
-defballwidth = 8
-defballheight = 8
+defballwidth = 10
+defballheight = 10
+
+defballradius = 10
 
 newBall :: Ball
 newBall = Ball{
   bw = defballwidth,
   bh = defballheight,
-  bx = 0,
-  by = 0,
+  bx = defballx,
+  by = defbally,
   bvx = defballspeed*speedup,
   bvy = defballspeed*speedup,
   bmaxspeed = 0
 } 
 
 ballDraw renderer Ball{..} = do
-  fillRectangle renderer (V2 bx by) (V2 (bx+bw) (by+bh)) white
+  fillCircle renderer (V2 bx by) (bw`div`2+2) white

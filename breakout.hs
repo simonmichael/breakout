@@ -24,15 +24,6 @@ import Sound
 
 progname = "breakout"
 
--- Our aspirational frame rate. We will show no more than this many frames per second,
--- enforced by Framerate.delay below. 
--- On mac at least, vsync (rendererType = AcceleratedVSyncRenderer below) also enforces
--- a max frame rate of 60 fps. 
-framerate = 60  -- fps
-
-defscreenwidth = 400
-defscreenheight = 400
-
 main :: IO ()
 main = do
   initializeAll
@@ -40,6 +31,7 @@ main = do
     withFonts $ \fonts -> do
       window <- createWindow progname defaultWindow{ 
         windowInitialSize = V2 defscreenwidth defscreenheight ,
+        -- windowMode = FullscreenDesktop,
         windowPosition = Centered
         }
       raiseWindow window

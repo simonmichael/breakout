@@ -21,9 +21,9 @@ data Bat = Bat {
 }
 
 defbatfriction = 0.2  -- not much effect right now
-defbatmaxspeed = 5
-defbataccel = 2
-defbatwidth = 50
+defbatmaxspeed = 4
+defbataccel = 1
+defbatwidth = 60
 defbatheight = 10
 
 newBat :: X -> Y -> Bat
