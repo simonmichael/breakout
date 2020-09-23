@@ -12,9 +12,7 @@ module Main where
 import Control.Monad
 import Data.List (partition)
 import Data.Text (Text)
-import SDL hiding (trace)
-import SDL.Mixer
-import SDL.Primitive
+
 import qualified SDL.Framerate as Framerate
 import System.Exit (exitSuccess)
 
@@ -38,14 +36,16 @@ defscreenheight = 400
 main :: IO ()
 main = do
   initializeAll
-  withSounds $ \sounds@Sounds{..} -> do
-    window <- createWindow progname defaultWindow{ 
-      windowInitialSize = V2 defscreenwidth defscreenheight ,
-      windowPosition = Centered
-      }
-    renderer <- createRenderer window (-1) defaultRenderer{ rendererType = AcceleratedVSyncRenderer }
-    Framerate.with framerate $ \fpsmgr -> do
-      loop (newGame window renderer fpsmgr sounds defscreenwidth defscreenheight)
+  withSounds $ \sounds@Sounds{..} -> 
+    withFonts $ \fonts -> do
+      window <- createWindow progname defaultWindow{ 
+        windowInitialSize = V2 defscreenwidth defscreenheight ,
+        windowPosition = Centered
+        }
+      raiseWindow window
+      renderer <- createRenderer window (-1) defaultRenderer{ rendererType = AcceleratedVSyncRenderer }
+      Framerate.with framerate $ \fpsmgr -> do
+        loop (newGame window renderer fpsmgr sounds fonts defscreenwidth defscreenheight)
 
 loop :: Game -> IO ()
 loop game@Game{..} = do

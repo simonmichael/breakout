@@ -36,4 +36,5 @@ executable sm-breakout
       ,sdl2-gfx >=0.2 && <0.3
       ,sdl2-image >=2.0 && <2.1
       ,sdl2-mixer >=1.1.0 && <1.2
+      ,sdl2-ttf >=2.1.1 && <2.2
       ,text
