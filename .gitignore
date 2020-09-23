@@ -2,9 +2,10 @@
 /old
 *.hi
 *.o
+/.vscode
 /TAGS
 /stack.yaml.lock
 /dist-newstyle
 /test.hs
 /data/lbreakout2
-/.vscode
+/data/haskanoid
