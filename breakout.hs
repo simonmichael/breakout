@@ -37,20 +37,5 @@ main = do
       raiseWindow window
       renderer <- createRenderer window (-1) defaultRenderer{ rendererType = AcceleratedVSyncRenderer }
       Framerate.with framerate $ \fpsmgr -> do
-        loop (newGame window renderer fpsmgr sounds fonts defscreenwidth defscreenheight)
+        gameLoop (newGame window renderer fpsmgr sounds fonts defscreenwidth defscreenheight)
 
-loop :: Game -> IO ()
-loop game@Game{..} = do
-  events <- pollEvents
-  when (any (flip isKeyDn KeycodeQ) events) $ do
-    destroyWindow gwindow   -- get rid of window when in GHCI.. not working
-    exitSuccess
-
-  game' <- foldM gameHandleEvent game events
-  let game''@Game{grenderer,gfpsmgr} = gameStep game'
-  gameDraw game''
-  present grenderer
-  game''' <- gamePlayNewSounds game''
-  delay <- Framerate.delay gfpsmgr
-  -- mtrace "delay" delay
-  loop game'''

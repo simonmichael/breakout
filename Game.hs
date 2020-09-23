@@ -2,18 +2,21 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module Game where
+import Control.Monad
+import Control.Monad.IO.Class (MonadIO)
+import Data.List (foldl')
+import qualified Data.Text as T
+import Foreign.C (CInt)
+import SDL hiding (trace)
+import qualified SDL.Framerate as Framerate
+import System.Exit (exitSuccess)
 
 import Ball
 import Bat
-import qualified Data.Text as T
 import Draw
-import Foreign.C (CInt)
-import SDL hiding (trace)
-import SDL.Framerate (Manager)
 import Sound
 import Types
 import Util
-import Control.Monad.IO.Class (MonadIO)
 
 type Score = Integer
 
@@ -21,20 +24,26 @@ type Score = Integer
 data Game = Game
   { gwindow :: Window,
     grenderer :: Renderer,
-    gfpsmgr :: Manager,
+    gfpsmgr :: Framerate.Manager,
     gsounds :: Sounds,
     gfonts :: Fonts,
     gtoplay :: [Chunk],
     gw :: CInt,
     gh :: CInt,
+    gquit :: Bool,
     gleftPressed :: Bool,
     grightPressed :: Bool,
     gbat :: Bat,
     gball :: Ball,
-    gscore :: Score
+    gscore :: Score,
+    gmode :: GameMode
   }
 
-newGame :: Window -> Renderer -> Manager -> Sounds -> Fonts -> CInt -> CInt -> Game
+data GameMode = GameAttract | GamePlay | GamePause | GameOver
+
+-- data GameEvent = Quit | Sound Sound
+
+newGame :: Window -> Renderer -> Framerate.Manager -> Sounds -> Fonts -> CInt -> CInt -> Game
 newGame window renderer fpsmgr sounds fonts width height =
   Game
     { gwindow = window,
@@ -45,29 +54,42 @@ newGame window renderer fpsmgr sounds fonts width height =
       gtoplay = [],
       gw = width,
       gh = height,
+      gquit = False,
       gleftPressed = False,
       grightPressed = False,
       gbat = newBat (div width 2) (height - defbatheight -40),
       gball = newBall,
-      gscore = 0
+      gscore = 0,
+      gmode = GameAttract
     }
 
-gameHandleEvent :: Game -> Event -> IO Game
-gameHandleEvent game event =
-  -- mtrace "evdata" evdata
-  -- mtrace "keycode" $ keysymKeycode keyboardEventKeysym
-  case event of
-    _
-      --  | event `isKeyDn` KeycodeQ -> gameExit game >> return game
-      | event `isKeyDn` KeycodeLeft -> return game {gleftPressed = True}
-      | event `isKeyUp` KeycodeLeft -> return game {gleftPressed = False}
-      | event `isKeyDn` KeycodeRight -> return game {grightPressed = True}
-      | event `isKeyUp` KeycodeRight -> return game {grightPressed = False}
-      | otherwise -> return game
+gameLoop :: Game -> IO ()
+gameLoop game@Game{gwindow,grenderer,gfpsmgr} = do
+  game' <- gameProcessSdlEvents game
+  when (gquit game') $ do
+    destroyWindow gwindow   -- get rid of window when in GHCI.. unreliable
+    exitSuccess
+  let game'' = gameStep game'
+  gameDraw game''
+  present grenderer
+  game''' <- gamePlayNewSounds game''
+  delay <- Framerate.delay gfpsmgr
+  gameLoop game'''
+
+gameProcessSdlEvents :: Game -> IO Game
+gameProcessSdlEvents game = pollEvents >>= return . foldl' processEvent game 
+  where
+    processEvent game event
+      | event `isKeyDn` KeycodeQ = game {gquit = True}
+      | event `isKeyDn` KeycodeLeft = game {gleftPressed = True}
+      | event `isKeyUp` KeycodeLeft = game {gleftPressed = False}
+      | event `isKeyDn` KeycodeRight = game {grightPressed = True}
+      | event `isKeyUp` KeycodeRight = game {grightPressed = False}
+      | otherwise = game
 
 gameStep :: Game -> Game
-gameStep game@Game {gtoplay, gw, gh, gleftPressed, grightPressed, gbat = bat@Bat {..}, gball = ball@Ball {..}} =
-  game {gbat = bat', gball = ball', gtoplay = gtoplay ++ batsounds ++ ballsounds, gscore = score'}
+gameStep game@Game{gtoplay, gw, gh, gleftPressed, grightPressed, gmode, gbat=bat@Bat{..}, gball=ball@Ball{..}} =
+  game{gbat = bat', gball = ball', gtoplay = gtoplay ++ batsounds ++ ballsounds, gscore = score'}
   where
     (bat', batsounds) = gameStepBat game bat
     (ball', ballsounds, score') = gameStepBall game ball
@@ -114,7 +136,7 @@ gameStepBall
       gscore'
         | newball = 0
         | hitbat = gscore + 1
-        | otherwise = gscore + 0  -- 1
+        | otherwise = gscore + 0 -- 1
 
 gamePlayNewSounds :: Game -> IO Game
 gamePlayNewSounds game@Game {gtoplay} = do
@@ -130,18 +152,16 @@ gameDraw game@Game {..} = do
   scoreDraw game
 
 scoreDraw :: Game -> IO ()
-scoreDraw game@Game{grenderer, gfonts=Fonts {..}, gw, gh, gscore} = do
+scoreDraw game@Game {grenderer, gfonts = Fonts {..}, gw, gh, gscore} = do
   let t = T.pack $ show gscore
-  (tw',th') <- size fntcrystal t
-  let 
-    (tw,th) = (2 * fromIntegral tw', 2 * fromIntegral th')  -- LOSSY
-    (tx,ty) = (gw-10-tw, gh-10-th)
-    rect = Rectangle (P $ V2 tx ty) (V2 tw th)
+  (tw', th') <- size fntcrystal t
+  let (tw, th) = (2 * fromIntegral tw', 2 * fromIntegral th') -- LOSSY
+      (tx, ty) = (gw -10 - tw, gh -10 - th)
+      rect = Rectangle (P $ V2 tx ty) (V2 tw th)
   drawText game white rect t
 
 drawText :: MonadIO m => Game -> Color -> Rectangle CInt -> T.Text -> m ()
-drawText Game {grenderer, gfonts = Fonts{..}} color rect t = do
+drawText Game {grenderer, gfonts = Fonts {..}} color rect t = do
   s <- blended fntcrystal color t
   t <- createTextureFromSurface grenderer s
   copy grenderer t Nothing (Just rect)
-
