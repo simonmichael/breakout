@@ -55,9 +55,10 @@ loop game@Game{..} = do
     exitSuccess
 
   game' <- foldM gameHandleEvent game events
-  game''@Game{grenderer,gfpsmgr} <- gamePlayNewSounds $ gameStep game'
+  let game''@Game{grenderer,gfpsmgr} = gameStep game'
   gameDraw game''
   present grenderer
+  game''' <- gamePlayNewSounds game''
   delay <- Framerate.delay gfpsmgr
   -- mtrace "delay" delay
-  loop game''
+  loop game'''
