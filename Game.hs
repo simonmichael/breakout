@@ -110,7 +110,7 @@ gameStepBall
       sounds =
         [sndwall | hitwallx || hitwally]
           ++ [sndpaddle | hitbat]
-          ++ [sndbassdrum1 | newball]
+          ++ [sndhit | newball]
       gscore'
         | newball = 0
         | hitbat = gscore + 1
