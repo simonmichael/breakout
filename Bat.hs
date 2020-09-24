@@ -6,7 +6,7 @@ import Foreign.C (CInt)
 
 import Draw
 import Util
-import Types
+import Constants
 
 -- a player bat
 data Bat = Bat {
@@ -20,18 +20,13 @@ data Bat = Bat {
   btaccel :: CInt
 }
 
-defbatfriction = 0.2  -- not much effect right now
-defbatmaxspeed = 4
-defbataccel = 1
-defbatwidth = 60
-defbatheight = 10
-
+-- Make a new bat centered near the bottom of the given window dimensions.
 newBat :: X -> Y -> Bat
-newBat x y = Bat{
+newBat windoww windowh = Bat{
   btw = defbatwidth,
   bth = defbatheight,
-  btx = x,
-  bty = y,
+  btx = windoww `div` 2,
+  bty = windowh - defbatheight - 40,
   btvx = 0,
   btvy = 0,
   btmaxspeed = defbatmaxspeed*speedup,

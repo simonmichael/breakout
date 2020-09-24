@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -15,61 +16,77 @@ import Ball
 import Bat
 import Draw
 import Sound
-import Types
+import Constants
 import Util
+import Control.Concurrent (threadDelay)
 
 type Score = Integer
 
 -- app, window, game state
-data Game = Game
-  { gwindow :: Window,
-    grenderer :: Renderer,
-    gfpsmgr :: Framerate.Manager,
-    gsounds :: Sounds,
-    gfonts :: Fonts,
-    gtoplay :: [Chunk],
-    gw :: CInt,
-    gh :: CInt,
-    gquit :: Bool,
-    gleftPressed :: Bool,
-    grightPressed :: Bool,
-    gbat :: Bat,
-    gball :: Ball,
-    gscore :: Score,
-    gmode :: GameMode
+data Game = Game {
+  -- resources
+  gwindow :: Window,
+  grenderer :: Renderer,
+  gfpsmgr :: Framerate.Manager,
+  gsounds :: Sounds,
+  gfonts :: Fonts,
+  -- game state
+  gw :: CInt,         -- window dimensions
+  gh :: CInt,
+  gmode :: GameMode,  -- current game mode/scene
+  gtoplay :: [Sound], -- new sounds to play
+  gschedule :: Seconds,  -- if non-zero, future value of SDL.time at which some pending thing should proceed
+  -- game objects
+  gbat :: Bat,
+  gball :: Ball,
+  gscore :: Score,
+  -- current user input
+  gQPressed :: Bool,
+  gPPressed :: Bool,
+  gleftPressed :: Bool,
+  grightPressed :: Bool,
+  gspacePressed :: Bool
   }
 
-data GameMode = GameAttract | GamePlay | GamePause | GameOver
+data GameMode = GameAttract | GamePlay | GamePause | GameOver | GameExit
+  deriving (Eq,Show)
 
 -- data GameEvent = Quit | Sound Sound
 
 newGame :: Window -> Renderer -> Framerate.Manager -> Sounds -> Fonts -> CInt -> CInt -> Game
-newGame window renderer fpsmgr sounds fonts width height =
-  Game
-    { gwindow = window,
-      grenderer = renderer,
-      gfpsmgr = fpsmgr,
-      gsounds = sounds,
-      gfonts = fonts,
-      gtoplay = [],
-      gw = width,
-      gh = height,
-      gquit = False,
-      gleftPressed = False,
-      grightPressed = False,
-      gbat = newBat (div width 2) (height - defbatheight -40),
-      gball = newBall,
-      gscore = 0,
-      gmode = GameAttract
-    }
+newGame window renderer fpsmgr sounds fonts width height = Game {
+  gwindow = window,
+  grenderer = renderer,
+  gfpsmgr = fpsmgr,
+  gsounds = sounds,
+  gfonts = fonts,
+  --
+  gw = width,
+  gh = height,
+  gmode = GameAttract,
+  gtoplay = [],
+  gschedule = 0,
+  --
+  gbat = newBat width height,
+  gball = newBall,
+  gscore = 0,
+  --
+  gQPressed = False,
+  gleftPressed = False,
+  grightPressed = False,
+  gspacePressed = False,
+  gPPressed = False
+  }
+
+gameReset :: Game -> Game
+gameReset Game{..} = newGame gwindow grenderer gfpsmgr gsounds gfonts gw gh
 
 gameLoop :: Game -> IO ()
-gameLoop game@Game{gwindow,grenderer,gfpsmgr} = do
+gameLoop game@Game{gwindow,grenderer,gfpsmgr,gsounds,gfonts,gw,gh} = do
   game' <- gameProcessSdlEvents game
-  when (gquit game') $ do
-    destroyWindow gwindow   -- get rid of window when in GHCI.. unreliable
-    exitSuccess
-  let game'' = gameStep game'
+  tnow <- time
+  let game'' = gameStep tnow game'
+  when (gmode game'' == GameExit) $ destroyWindow gwindow >> exitSuccess
   gameDraw game''
   present grenderer
   game''' <- gamePlayNewSounds game''
@@ -80,21 +97,37 @@ gameProcessSdlEvents :: Game -> IO Game
 gameProcessSdlEvents game = pollEvents >>= return . foldl' processEvent game 
   where
     processEvent game event
-      | event `isKeyDn` KeycodeQ = game {gquit = True}
+      | event `isKeyDn` KeycodeQ || event `isKeyDn` KeycodeEscape = game {gQPressed = True}
+      | event `isKeyDn` KeycodeP = game {gPPressed = True}
+      | event `isKeyUp` KeycodeP = game {gPPressed = False}
       | event `isKeyDn` KeycodeLeft = game {gleftPressed = True}
       | event `isKeyUp` KeycodeLeft = game {gleftPressed = False}
       | event `isKeyDn` KeycodeRight = game {grightPressed = True}
       | event `isKeyUp` KeycodeRight = game {grightPressed = False}
+      | event `isKeyDn` KeycodeSpace = game {gspacePressed = True}
+      | event `isKeyUp` KeycodeSpace = game {gspacePressed = False}
       | otherwise = game
 
-gameStep :: Game -> Game
-gameStep game@Game{gtoplay, gw, gh, gleftPressed, grightPressed, gmode, gbat=bat@Bat{..}, gball=ball@Ball{..}} =
-  game{gbat = bat', gball = ball', gtoplay = gtoplay ++ batsounds ++ ballsounds, gscore = score'}
+gameStep :: Seconds -> Game -> Game
+gameStep tnow game@Game{..} =
+  case gmode of
+    GameAttract | gQPressed     -> game{gmode=GameExit}
+    GameAttract | gspacePressed -> game{gmode=GamePlay}
+    GamePause   | gspacePressed -> game{gmode=GamePlay}
+    GamePause   | gQPressed     -> gameReset game
+    GamePlay    | gPPressed     -> game{gmode=GamePause}
+    GamePlay    | gameover || gQPressed
+                                -> game{gmode=GameOver, gtoplay=[sndhit gsounds], gschedule=tnow+gameoverdelay}
+    GamePlay                    -> game{gbat = bat, gball = ball, gtoplay = batsounds ++ ballsounds, gscore = score}
+    GameOver    | gQPressed || gspacePressed || tnow >= gschedule
+                                -> gameReset game
+    GameOver                    -> game{gbat = bat, gtoplay = batsounds}
+    otherwise                   -> game
   where
-    (bat', batsounds) = gameStepBat game bat
-    (ball', ballsounds, score') = gameStepBall game ball
+    (bat, batsounds) = gameStepBat game gbat
+    (ball, ballsounds, score, gameover) = gameStepBall game gball
 
-gameStepBat :: Game -> Bat -> (Bat, [Chunk])
+gameStepBat :: Game -> Bat -> (Bat, [Sound])
 gameStepBat game@Game {gsounds = Sounds {..}, gw, gh, gleftPressed, grightPressed} bat@Bat {..} = (bat', sounds)
   where
     btvx' = if gleftPressed then (max (btvx - btaccel) (- btmaxspeed)) else btvx
@@ -108,11 +141,11 @@ gameStepBat game@Game {gsounds = Sounds {..}, gw, gh, gleftPressed, grightPresse
     bat' = bat {btx = btx', bty = bty', btvx = btvx'''', btvy = btvy'}
     sounds = [sndkickdrum1 | hitwall]
 
-gameStepBall :: Game -> Ball -> (Ball, [Chunk], Integer)
+gameStepBall :: Game -> Ball -> (Ball, [Sound], Integer, Bool)
 gameStepBall
   game@Game {gsounds = Sounds {..}, gw, gh, gleftPressed, grightPressed, gbat = Bat {..}, gscore}
   ball@Ball {..} =
-    (ball', sounds, gscore')
+    (ball', sounds, gscore', isnewball)
     where
       (bx', bvx', hitwallx) = incrementWithBounce bx bvx 0 (gw - bw)
       (by', bvy', hitwally, hitbat)
@@ -126,17 +159,15 @@ gameStepBall
           let (x, y, _) = incrementWithBounce by bvy 0 (bty - bh) in (x, y, False, True)
         | otherwise =
           let (x, y, hitwally) = incrementWithBounce by bvy 0 (gh - bh) in (x, y, hitwally, False)
-      (ball', newball)
+      (ball', isnewball)
         | (by + bvy) >= (gh - bh) = (newBall, True)
         | otherwise = (ball {bx = bx', by = by', bvx = bvx', bvy = bvy'}, False)
       sounds =
         [sndwall | hitwallx || hitwally]
-          ++ [sndpaddle | hitbat]
-          ++ [sndhit | newball]
+        ++ [sndpaddle | hitbat]
       gscore'
-        | newball = 0
         | hitbat = gscore + 1
-        | otherwise = gscore + 0 -- 1
+        | otherwise = gscore
 
 gamePlayNewSounds :: Game -> IO Game
 gamePlayNewSounds game@Game {gtoplay} = do
@@ -144,24 +175,40 @@ gamePlayNewSounds game@Game {gtoplay} = do
   return game {gtoplay = []}
 
 gameDraw :: Game -> IO ()
-gameDraw game@Game {..} = do
-  rendererDrawColor grenderer $= black
-  clear grenderer
-  batDraw grenderer gbat
-  ballDraw grenderer gball
-  scoreDraw game
+gameDraw game@Game {..} =
+  case gfonts of
+    Fonts{..} -> do
+      t <- fromIntegral <$> ticks
+      let c = (black : replicate 40 red) `pickWith` (t `div` 100)
+      rendererDrawColor grenderer $= black
+      clear grenderer
+      let mid = V2 (gw `div` 2) (gh `div` 2)
+      case gmode of
+        GameAttract -> do
+          drawTextCenteredAt grenderer fnt3 1 (mid - V2 0 40) white $ T.toUpper progname
+          drawTextCenteredAt grenderer fnt2 1 (mid + V2 0 60) c "SPACE to play"
+        GamePlay    -> do
+          batDraw grenderer gbat
+          ballDraw grenderer gball
+          scoreDraw game
+        GamePause   -> do
+          batDraw grenderer gbat
+          ballDraw grenderer gball
+          scoreDraw game
+          drawTextCenteredAt grenderer fnt2 1 mid c "SPACE to resume"
+        GameOver    -> do
+          batDraw grenderer gbat
+          scoreDraw game
+          drawTextCenteredAt grenderer fnt2 1 mid red "GAME OVER"
 
 scoreDraw :: Game -> IO ()
-scoreDraw game@Game {grenderer, gfonts = Fonts {..}, gw, gh, gscore} = do
-  let t = T.pack $ show gscore
-  (tw', th') <- size fntcrystal t
-  let (tw, th) = (2 * fromIntegral tw', 2 * fromIntegral th') -- LOSSY
-      (tx, ty) = (gw -10 - tw, gh -10 - th)
+scoreDraw Game {grenderer, gfonts = Fonts {..}, gw, gh, gscore} = do
+  let 
+    t = T.pack $ show gscore
+    font = fnt2
+    scale = 1
+  (tw, th) <- both (scale*) <$> textSize font t
+  let (tx, ty) = (gw - 10 - tw, gh - 10 - th)
       rect = Rectangle (P $ V2 tx ty) (V2 tw th)
-  drawText game white rect t
+  drawText grenderer font white rect t
 
-drawText :: MonadIO m => Game -> Color -> Rectangle CInt -> T.Text -> m ()
-drawText Game {grenderer, gfonts = Fonts {..}} color rect t = do
-  s <- blended fntcrystal color t
-  t <- createTextureFromSurface grenderer s
-  copy grenderer t Nothing (Just rect)

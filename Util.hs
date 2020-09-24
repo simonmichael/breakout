@@ -1,11 +1,13 @@
-module Util (
-      module Util,
-      module Debug.Trace
-)
+{-# LANGUAGE RecordWildCards #-}
+module Util
+  ( module Util,
+    module Debug.Trace,
+  )
 where
+
 import Debug.Trace
-import SDL hiding (trace)
 import Foreign.C (CInt)
+import SDL hiding (trace)
 
 -- debugging
 
@@ -13,17 +15,22 @@ import Foreign.C (CInt)
 -- (for easily tracing in the middle of a complex expression)
 strace :: Show a => a -> a
 strace a = trace (show a) a
+
 -- | labelled trace - like strace, with a label prepended
 ltrace :: Show a => String -> a -> a
 ltrace l a = trace (l ++ ": " ++ show a) a
+
 -- | monadic trace - like ltrace, but works as a standalone line in a monad
 mtrace :: (Monad m, Show a) => String -> a -> m a
 mtrace l a = ltrace l a `seq` return a
+
 -- | trace an expression using a custom show function
 tracewith :: (a -> String) -> a -> a
 tracewith f e = trace (f e) e
 
 --
+
+type Seconds = Double
 
 type X = CInt
 type Y = CInt
@@ -72,10 +79,18 @@ isKeyUp :: Event -> Keycode -> Bool
 isKeyUp event keycode = eventIsKey event keycode Released
 
 eventIsKey :: Event -> Keycode -> InputMotion -> Bool
-eventIsKey event keycode keymotion = 
-      case eventPayload event of
-            KeyboardEvent keyboardEvent ->
-                  keyboardEventKeyMotion keyboardEvent == keymotion &&
-                  keysymKeycode (keyboardEventKeysym keyboardEvent) == keycode
-            _ -> False
+eventIsKey event keycode keymotion =
+  case eventPayload event of
+    KeyboardEvent KeyboardEventData{..} -> and [
+      keyboardEventKeyMotion == keymotion,
+      keysymKeycode keyboardEventKeysym == keycode,
+      not keyboardEventRepeat
+      ]
+    _ -> False
+
+both :: (a -> b) -> (a, a) -> (b, b)
+both f (x, y) = (f x, f y)
+
+pickWith :: [a] -> Int -> a
+pickWith as n = as !! (n `mod` length as)
 

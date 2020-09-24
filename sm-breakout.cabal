@@ -24,9 +24,9 @@ executable sm-breakout
     Ball
     Draw
     Sound
-    Types
+    Constants
     Util
-    Import
+    -- Import
 
   -- other-extensions:
   build-depends:

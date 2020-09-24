@@ -6,7 +6,7 @@ import Foreign.C (CInt)
 
 import Draw
 import Util
-import Types
+import Constants
 
 -- a ball
 data Ball = Ball {
@@ -18,12 +18,6 @@ data Ball = Ball {
   bvy :: CInt,
   bmaxspeed :: CInt
 }
-
-defballspeed = 4
-defballwidth = 10
-defballheight = 10
-
-defballradius = 10
 
 newBall :: Ball
 newBall = Ball{

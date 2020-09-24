@@ -17,12 +17,10 @@ import qualified SDL.Framerate as Framerate
 import System.Exit (exitSuccess)
 
 import Util
-import Types
+import Constants
 import Game
 import Draw
 import Sound
-
-progname = "breakout"
 
 main :: IO ()
 main = do
