@@ -14,7 +14,7 @@ import System.Exit (exitSuccess)
 
 import Ball
 import Bat
-import Draw
+import Graphics
 import Sound
 import Constants
 import Util

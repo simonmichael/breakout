@@ -4,11 +4,10 @@ module Ball
 where
 import Foreign.C (CInt)
 
-import Draw
+import Graphics
 import Util
 import Constants
 
--- a ball
 data Ball = Ball {
   bw :: CInt,
   bh :: CInt,

@@ -4,11 +4,10 @@ module Bat
 where
 import Foreign.C (CInt)
 
-import Draw
+import Graphics
 import Util
 import Constants
 
--- a player bat
 data Bat = Bat {
   btw :: CInt,
   bth :: CInt,
@@ -20,7 +19,7 @@ data Bat = Bat {
   btaccel :: CInt
 }
 
--- Make a new bat centered near the bottom of the given window dimensions.
+-- A new bat centered near the bottom of the given window dimensions.
 newBat :: X -> Y -> Bat
 newBat windoww windowh = Bat{
   btw = defbatwidth,
@@ -35,4 +34,3 @@ newBat windoww windowh = Bat{
 
 batDraw renderer Bat{..} = do
   fillRectangle renderer (V2 btx bty) (V2 (btx+btw) (bty+bth)) red
-  

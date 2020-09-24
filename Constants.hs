@@ -20,8 +20,8 @@ speedup = 2 :: CInt
 
 gameoverdelay = 5 :: Seconds
 
-defscreenwidth = 500 :: CInt
-defscreenheight = 500 :: CInt
+defwindowwidth = 500 :: CInt
+defwindowheight = 500 :: CInt
 
 defbatfriction = 0.2  -- not much effect right now
 defbatmaxspeed = 4 :: CInt
@@ -30,7 +30,7 @@ defbatwidth = 60 :: CInt
 defbatheight = 10 :: CInt
 
 defballx = 0 :: CInt
-defbally = defscreenheight `div` 2 - 80 :: CInt
+defbally = defwindowwidth `div` 2 - 80 :: CInt
 defballspeed = 4 :: CInt
 defballwidth = 10 :: CInt
 defballheight = 10 :: CInt

@@ -19,7 +19,7 @@ import System.Exit (exitSuccess)
 import Util
 import Constants
 import Game
-import Draw
+import Graphics
 import Sound
 
 main :: IO ()
@@ -28,12 +28,12 @@ main = do
   withSounds $ \sounds@Sounds{..} -> 
     withFonts $ \fonts -> do
       window <- createWindow progname defaultWindow{ 
-        windowInitialSize = V2 defscreenwidth defscreenheight ,
+        windowInitialSize = V2 defwindowwidth defwindowheight ,
         -- windowMode = FullscreenDesktop,
         windowPosition = Centered
         }
       raiseWindow window
       renderer <- createRenderer window (-1) defaultRenderer{ rendererType = AcceleratedVSyncRenderer }
       Framerate.with framerate $ \fpsmgr -> do
-        gameLoop (newGame window renderer fpsmgr sounds fonts defscreenwidth defscreenheight)
+        gameLoop (newGame window renderer fpsmgr sounds fonts defwindowwidth defwindowwidth)
 

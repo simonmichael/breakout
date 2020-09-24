@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Draw (
-      module Draw,
+module Graphics (
+      module Graphics,
       module SDL,
       module SDL.Font,
       module SDL.Primitive
@@ -22,8 +22,7 @@ red = V4 255 0 0 255 :: V4 Word8
 white = V4 255 255 255 255 :: V4 Word8
 
 data Fonts = Fonts {
-   fnt1, fnt2, fnt3
-  :: Font
+  fnt1, fnt2, fnt3 :: Font
 }
 
 withFonts :: (Fonts -> IO a) -> IO a

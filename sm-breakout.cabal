@@ -22,11 +22,10 @@ executable sm-breakout
     Game
     Bat
     Ball
-    Draw
+    Graphics
     Sound
     Constants
     Util
-    -- Import
 
   -- other-extensions:
   build-depends:
