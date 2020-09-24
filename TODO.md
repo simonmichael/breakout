@@ -13,7 +13,6 @@
 - high score
 - fractional speeds
 - gameplay tuning
-
 - --version
 - --help
 - CI & binaries
