@@ -6,7 +6,7 @@ This was one of my first Haskell projects, in 2007, now updated in 2020.
 
 ## Install
 
-1. Install SDL v2 libs for your system ([1], [2], ...)
+1. Install SDL 2 libs for your system ([1], [2], `brew install sdl2`, or similar)
 2. `gh repo clone simonmichael/sm-breakout`
 3. `cd sm-breakout`
 4. `stack run`
