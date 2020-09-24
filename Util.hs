@@ -88,6 +88,22 @@ eventIsKey event keycode keymotion =
       ]
     _ -> False
 
+eventHasAnyKeyModifier :: Event -> [KeyModifier -> Bool] -> Bool
+eventHasAnyKeyModifier event keymodaccessors =
+  case eventPayload event of
+    KeyboardEvent KeyboardEventData{..} -> any ($ eventmods) keymodaccessors
+      where eventmods = keysymModifier keyboardEventKeysym
+    _ -> False
+
+eventHasShift :: Event -> Bool
+eventHasShift = flip eventHasAnyKeyModifier [keyModifierLeftShift,keyModifierRightShift]
+
+eventHasCtrl :: Event -> Bool
+eventHasCtrl = flip eventHasAnyKeyModifier [keyModifierLeftCtrl,keyModifierRightCtrl]
+
+eventHasAlt :: Event -> Bool
+eventHasAlt = flip eventHasAnyKeyModifier [keyModifierLeftAlt,keyModifierRightAlt]
+
 both :: (a -> b) -> (a, a) -> (b, b)
 both f (x, y) = (f x, f y)
 

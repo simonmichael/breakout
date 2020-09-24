@@ -43,12 +43,13 @@ data Game = Game {
   -- current user input
   gQPressed :: Bool,
   gPPressed :: Bool,
+  gshiftPPressed :: Bool,
   gleftPressed :: Bool,
   grightPressed :: Bool,
   gspacePressed :: Bool
   }
 
-data GameMode = GameAttract | GamePlay | GamePause | GameOver | GameExit
+data GameMode = GameAttract | GamePlay | GamePause | GamePauseScreenshot | GameOver | GameExit
   deriving (Eq,Show)
 
 -- data GameEvent = Quit | Sound Sound
@@ -72,10 +73,11 @@ newGame window renderer fpsmgr sounds fonts width height = Game {
   gscore = 0,
   --
   gQPressed = False,
+  gPPressed = False,
+  gshiftPPressed = False,
   gleftPressed = False,
   grightPressed = False,
-  gspacePressed = False,
-  gPPressed = False
+  gspacePressed = False
   }
 
 gameReset :: Game -> Game
@@ -98,31 +100,43 @@ gameProcessSdlEvents game = pollEvents >>= return . foldl' processEvent game
   where
     processEvent game event
       | event `isKeyDn` KeycodeQ || event `isKeyDn` KeycodeEscape = game {gQPressed = True}
-      | event `isKeyDn` KeycodeP = game {gPPressed = True}
-      | event `isKeyUp` KeycodeP = game {gPPressed = False}
+
+      | event `isKeyDn` KeycodeP && eventHasShift event = game {gshiftPPressed = True}
+      | event `isKeyUp` KeycodeP && eventHasShift event = game {gshiftPPressed = False}
+      | event `isKeyDn` KeycodeP                        = game {gPPressed = True}
+      | event `isKeyUp` KeycodeP                        = game {gPPressed = False}
+
       | event `isKeyDn` KeycodeLeft = game {gleftPressed = True}
       | event `isKeyUp` KeycodeLeft = game {gleftPressed = False}
       | event `isKeyDn` KeycodeRight = game {grightPressed = True}
       | event `isKeyUp` KeycodeRight = game {grightPressed = False}
       | event `isKeyDn` KeycodeSpace = game {gspacePressed = True}
       | event `isKeyUp` KeycodeSpace = game {gspacePressed = False}
+
       | otherwise = game
 
 gameStep :: Seconds -> Game -> Game
 gameStep tnow game@Game{..} =
   case gmode of
-    GameAttract | gQPressed     -> game{gmode=GameExit}
-    GameAttract | gspacePressed -> game{gmode=GamePlay}
-    GamePause   | gspacePressed -> game{gmode=GamePlay}
-    GamePause   | gQPressed     -> gameReset game
-    GamePlay    | gPPressed     -> game{gmode=GamePause}
-    GamePlay    | gameover || gQPressed
-                                -> game{gmode=GameOver, gtoplay=[sndhit gsounds], gschedule=tnow+gameoverdelay}
-    GamePlay                    -> game{gbat = bat, gball = ball, gtoplay = batsounds ++ ballsounds, gscore = score}
-    GameOver    | gQPressed || gspacePressed || tnow >= gschedule
-                                -> gameReset game
-    GameOver                    -> game{gbat = bat, gtoplay = batsounds}
-    otherwise                   -> game
+
+    GameAttract | gQPressed             -> game{gmode=GameExit}
+    GameAttract | gspacePressed         -> game{gmode=GamePlay}
+
+    GamePause           | gspacePressed -> game{gmode=GamePlay}
+    GamePauseScreenshot | gspacePressed -> game{gmode=GamePlay}
+    GamePause           | gQPressed     -> gameReset game
+    GamePauseScreenshot | gQPressed     -> gameReset game
+
+    GamePlay    | gshiftPPressed        -> game{gmode=GamePauseScreenshot}
+    GamePlay    | gPPressed             -> game{gmode=GamePause}
+    GamePlay    | gameover || gQPressed -> game{gmode=GameOver, gtoplay=[sndhit gsounds], gschedule=tnow+gameoverdelay}
+    GamePlay                            -> game{gbat = bat, gball = ball, gtoplay = batsounds ++ ballsounds, gscore = score}
+
+    GameOver    | gQPressed || gspacePressed || tnow >= gschedule  -> gameReset game
+    GameOver                            -> game{gbat = bat, gtoplay = batsounds}
+
+    otherwise                           -> game
+
   where
     (bat, batsounds) = gameStepBat game gbat
     (ball, ballsounds, score, gameover) = gameStepBall game gball
@@ -196,6 +210,10 @@ gameDraw game@Game {..} =
           ballDraw grenderer gball
           scoreDraw game
           drawTextCenteredAt grenderer fnt2 1 mid c "SPACE to resume"
+        GamePauseScreenshot -> do
+          batDraw grenderer gbat
+          ballDraw grenderer gball
+          scoreDraw game
         GameOver    -> do
           batDraw grenderer gbat
           scoreDraw game
