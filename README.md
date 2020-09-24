@@ -6,13 +6,13 @@ This was one of my first Haskell projects, in 2007, now updated in 2020.
 
 ## Install
 
-It should build on any platform which has the SDL C libs and GHC 8.10+.
-For now, it should be run from the source directory, to find files in `./data/*`.
-
 1. Install SDL v2 libs for your system ([1], [2], ...)
 2. `gh repo clone simonmichael/sm-breakout`
 3. `cd sm-breakout`
 4. `stack run`
+
+It should build on any platform which has the SDL libs and GHC 8.10+.
+For now it must be run from the source directory, to find files in `./data/*`.
 
 [1]: https://www.libsdl.org/download-2.0.php
 [2]: https://repology.org/project/sdl/badges
