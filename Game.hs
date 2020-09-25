@@ -83,6 +83,16 @@ newGame window renderer fpsmgr sounds fonts width height = Game {
 gameReset :: Game -> Game
 gameReset Game{..} = newGame gwindow grenderer gfpsmgr gsounds gfonts gw gh
 
+gameClearInput :: Game -> Game
+gameClearInput g = g{
+  gQPressed = False,
+  gPPressed = False,
+  gshiftPPressed = False,
+  gleftPressed = False,
+  grightPressed = False,
+  gspacePressed = False
+  }
+
 gameLoop :: Game -> IO ()
 gameLoop game@Game{gwindow,grenderer,gfpsmgr,gsounds,gfonts,gw,gh} = do
   game' <- gameProcessSdlEvents game
@@ -119,7 +129,7 @@ gameProcessSdlEvents game = pollEvents >>= return . foldl' processEvent game
       | otherwise = game
 
 gameStep :: Seconds -> Game -> Game
-gameStep tnow game@Game{..} =
+gameStep tnow game'@Game{..} =
   case gmode of
 
     GameAttract | gQPressed             -> game{gmode=GameExit}
@@ -141,6 +151,7 @@ gameStep tnow game@Game{..} =
     otherwise                           -> game
 
   where
+    game = gameClearInput game'  -- clear keys' pressed status immediately in case same key is used in new mode
     (bat, batsounds) = gameStepBat game gbat
     (ball, ballsounds, score, gameover) = gameStepBall game gball
 
