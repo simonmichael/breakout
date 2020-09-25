@@ -88,12 +88,15 @@ gameLoop game@Game{gwindow,grenderer,gfpsmgr,gsounds,gfonts,gw,gh} = do
   game' <- gameProcessSdlEvents game
   tnow <- time
   let game'' = gameStep tnow game'
-  when (gmode game'' == GameExit) $ destroyWindow gwindow >> exitSuccess
-  gameDraw game''
-  present grenderer
-  game''' <- gamePlayNewSounds game''
-  delay <- Framerate.delay gfpsmgr
-  gameLoop game'''
+  if (gmode game'' /= GameExit)
+  then do
+    gameDraw game''
+    present grenderer
+    game''' <- gamePlayNewSounds game''
+    delay <- Framerate.delay gfpsmgr
+    gameLoop game'''
+  else do
+    destroyWindow gwindow
 
 gameProcessSdlEvents :: Game -> IO Game
 gameProcessSdlEvents game = pollEvents >>= return . foldl' processEvent game 
