@@ -129,7 +129,7 @@ gameProcessSdlEvents game = pollEvents >>= return . foldl' processEvent game
       | otherwise = game
 
 gameStep :: Seconds -> Game -> Game
-gameStep tnow game'@Game{..} =
+gameStep tnow game@Game{..} =
   case gmode of
 
     GameAttract | gQPressed             -> game{gmode=GameExit}
@@ -142,7 +142,7 @@ gameStep tnow game'@Game{..} =
 
     GamePlay    | gshiftPPressed        -> game{gmode=GamePauseScreenshot}
     GamePlay    | gPPressed             -> game{gmode=GamePause}
-    GamePlay    | gameover || gQPressed -> game{gmode=GameOver, gtoplay=[sndhit gsounds], gschedule=tnow+gameoverdelay}
+    GamePlay    | gameover || gQPressed -> game{gmode=GameOver, gQPressed=False, gtoplay=[sndhit gsounds], gschedule=tnow+gameoverdelay}
     GamePlay                            -> game{gbat = bat, gball = ball, gtoplay = batsounds ++ ballsounds, gscore = score}
 
     GameOver    | gQPressed || gspacePressed || tnow >= gschedule  -> gameReset game
@@ -151,7 +151,6 @@ gameStep tnow game'@Game{..} =
     otherwise                           -> game
 
   where
-    game = gameClearInput game'  -- clear keys' pressed status immediately in case same key is used in new mode
     (bat, batsounds) = gameStepBat game gbat
     (ball, ballsounds, score, gameover) = gameStepBall game gball
 
