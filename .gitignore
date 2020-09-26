@@ -8,3 +8,5 @@
 /dist-newstyle
 /test.hs
 /data/.gitignore
+sm-breakout.hp
+sm-breakout.svg
