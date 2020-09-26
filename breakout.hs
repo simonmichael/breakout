@@ -47,6 +47,7 @@ main = do
         windowPosition = Centered
         }
       raiseWindow window
+      cursorVisible $= False
       renderer <- createRenderer window (-1) defaultRenderer{ rendererType = AcceleratedVSyncRenderer }
       Framerate.with framerate $ \fpsmgr -> do
         initialticks <- ticks

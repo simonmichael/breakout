@@ -114,6 +114,12 @@ gameLoop game@Game{gendtick,gwindow,grenderer,gfpsmgr,gsounds,gfonts,gw,gh} = do
     delay <- Framerate.delay gfpsmgr
     gameLoop game'''
   else do
+    -- Try to encourage good behaviour when exiting within GHCI.
+    -- Usually the window does get destroyed, but not always.
+    -- Often/always a process/app switcher icon remains, until
+    -- GHCI exits, and can steal focus, and won't show the mouse
+    -- cursor until you switch away from it.
+    cursorVisible $= True
     destroyWindow gwindow
 
 gameProcessSdlEvents :: Game -> IO Game
