@@ -156,7 +156,7 @@ gameStep tnow game@Game{..} =
 
     GamePlay    | gshiftPPressed        -> game{gmode=GamePauseScreenshot}
     GamePlay    | gPPressed             -> game{gmode=GamePause}
-    GamePlay    | gameover || gQPressed -> game{gmode=GameOver, gQPressed=False, gtoplay=[sndhit gsounds], gschedule=tnow+gameoverdelay}
+    GamePlay    | gameover || gQPressed -> game{gmode=GameOver, gQPressed=False, gtoplay=[sndballLoss gsounds], gschedule=tnow+gameoverdelay}
     GamePlay                            -> game{gbat = bat, gball = ball, gtoplay = batsounds ++ ballsounds, gscore = score}
 
     GameOver    | gQPressed || gspacePressed || tnow >= gschedule  -> gameReset game
@@ -180,7 +180,7 @@ gameStepBat game@Game {gsounds = Sounds {..}, gw, gh, gleftPressed, grightPresse
     (btx', btvx'''', hitwall) = incrementWithStop btx btvx''' 0 (gw - btw)
     (bty', btvy') = (gh - bth -40, 0)
     bat' = bat {btx = btx', bty = bty', btvx = btvx'''', btvy = btvy'}
-    sounds = [sndkickdrum | hitwall]
+    sounds = [sndballLoss | hitwall]
 
 gameStepBall :: Game -> Ball -> (Ball, [Sound], Integer, Bool)
 gameStepBall
@@ -204,8 +204,8 @@ gameStepBall
         | (by + bvy) >= (gh - bh) = (newBall, True)
         | otherwise = (ball {bx = bx', by = by', bvx = bvx', bvy = bvy'}, False)
       sounds =
-        [sndwall | hitwallx || hitwally]
-        ++ [sndpaddle | hitbat]
+           [sndballWall | hitwallx || hitwally]
+        ++ [sndballBat  | hitbat]
       gscore'
         | hitbat = gscore + 1
         | otherwise = gscore
