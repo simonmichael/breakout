@@ -19,7 +19,7 @@ data Sounds = Sounds {
   ,sndbassdrum1
   ,sndkickdrum1
   :: Sound
-}
+} deriving Show
 
 numchannels = 256
 

@@ -17,7 +17,7 @@ data Bat = Bat {
   btvy :: CInt,
   btmaxspeed :: CInt,
   btaccel :: CInt
-}
+} deriving Show
 
 -- A new bat centered near the bottom of the given window dimensions.
 newBat :: X -> Y -> Bat

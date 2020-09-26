@@ -8,6 +8,9 @@ import Foreign.C (CInt)
 import Util ( Seconds )
 
 progname = "sm-breakout" :: T.Text
+progversion = "0.1"
+usageheading = T.unpack progname ++ " " ++ progversion
+usagebody = ""
 
 -- Our aspirational frame rate. We will show no more than this many frames per second,
 -- enforced by Framerate.delay below. 

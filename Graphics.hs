@@ -23,7 +23,7 @@ white = V4 255 255 255 255 :: V4 Word8
 
 data Fonts = Fonts {
   fnt1, fnt2, fnt3 :: Font
-}
+} deriving Show
 
 withFonts :: (Fonts -> IO a) -> IO a
 withFonts f = do

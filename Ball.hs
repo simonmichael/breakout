@@ -16,7 +16,7 @@ data Ball = Ball {
   bvx :: CInt,
   bvy :: CInt,
   bmaxspeed :: CInt
-}
+} deriving Show
 
 newBall :: Ball
 newBall = Ball{

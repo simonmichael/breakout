@@ -19,11 +19,15 @@ import Sound
 import Constants
 import Util
 import Control.Concurrent (threadDelay)
+import Data.Word (Word32)
+import Data.Maybe (fromJust)
 
 type Score = Integer
 
 -- app, window, game state
 data Game = Game {
+  -- config
+  gendtick :: Maybe Word32,  -- a time in SDL ticks after which the program should exit
   -- resources
   gwindow :: Window,
   grenderer :: Renderer,
@@ -35,7 +39,7 @@ data Game = Game {
   gh :: CInt,
   gmode :: GameMode,  -- current game mode/scene
   gtoplay :: [Sound], -- new sounds to play
-  gschedule :: Seconds,  -- if non-zero, future value of SDL.time at which some pending thing should proceed
+  gschedule :: Seconds,  -- if non-zero, future value of SDL.time at which some pending thing should happen
   -- game objects
   gbat :: Bat,
   gball :: Ball,
@@ -48,14 +52,17 @@ data Game = Game {
   grightPressed :: Bool,
   gspacePressed :: Bool
   }
+  deriving Show
 
 data GameMode = GameAttract | GamePlay | GamePause | GamePauseScreenshot | GameOver | GameExit
   deriving (Eq,Show)
 
 -- data GameEvent = Quit | Sound Sound
 
-newGame :: Window -> Renderer -> Framerate.Manager -> Sounds -> Fonts -> CInt -> CInt -> Game
-newGame window renderer fpsmgr sounds fonts width height = Game {
+newGame :: Maybe Word32 -> Window -> Renderer -> Framerate.Manager -> Sounds -> Fonts -> CInt -> CInt -> Game
+newGame totick window renderer fpsmgr sounds fonts width height = Game {
+  gendtick = totick,
+  --
   gwindow = window,
   grenderer = renderer,
   gfpsmgr = fpsmgr,
@@ -81,7 +88,7 @@ newGame window renderer fpsmgr sounds fonts width height = Game {
   }
 
 gameReset :: Game -> Game
-gameReset Game{..} = newGame gwindow grenderer gfpsmgr gsounds gfonts gw gh
+gameReset Game{..} = newGame gendtick gwindow grenderer gfpsmgr gsounds gfonts gw gh
 
 gameClearInput :: Game -> Game
 gameClearInput g = g{
@@ -94,11 +101,12 @@ gameClearInput g = g{
   }
 
 gameLoop :: Game -> IO ()
-gameLoop game@Game{gwindow,grenderer,gfpsmgr,gsounds,gfonts,gw,gh} = do
+gameLoop game@Game{gendtick,gwindow,grenderer,gfpsmgr,gsounds,gfonts,gw,gh} = do
+  tticks <- ticks
+  tsecs <- time
   game' <- gameProcessSdlEvents game
-  tnow <- time
-  let game'' = gameStep tnow game'
-  if (gmode game'' /= GameExit)
+  let game'' = gameStep tsecs game'
+  if (gmode game'' /= GameExit && (gendtick==Nothing || tticks < fromJust gendtick))
   then do
     gameDraw game''
     present grenderer
