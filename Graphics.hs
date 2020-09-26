@@ -52,8 +52,12 @@ drawTextCenteredAt renderer font scale (V2 x y) color t = do
     rect = Rectangle (P $ V2 tx ty) (V2 tw th)
   drawText renderer font color rect t
 
+-- XXX creates a new surface/texture every time, should cache or pregenerate these
 drawText :: MonadIO m => Renderer -> Font -> Color -> Rectangle CInt -> T.Text -> m ()
 drawText renderer font color rect t = do
   s <- blended font color t
   t <- createTextureFromSurface renderer s
   copy renderer t Nothing (Just rect)
+  freeSurface s
+  destroyTexture t
+
