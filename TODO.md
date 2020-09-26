@@ -3,19 +3,14 @@
 ## 0.1
 
 ### fix
-- play -> q bypasses game-over screen
-- fix/optimise memory
-- embed resources
-- optimise cpu
 
 ### improve
-- hide mouse pointer
+- embed assets
 - high score
 - fractional speeds
 - gameplay tuning
-- --version
-- --help
 - CI & binaries
+- optimise cpu
 
 ## at some point
 

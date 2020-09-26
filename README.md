@@ -27,11 +27,11 @@ This project's goals are:
 - Provide amusement and re-creation for myself
 - Research, learn, uplevel my [haskell] game dev powers
 - Experiment with tools, techniques, architectures, practices
-- Minimise toil (non-energising work)
+- Minimise toil, maximise fun
 
 and secondary/stretch goals would be:
 
-- Provide new, maintained examples of a small haskell game implemented several ways, useful for learning or as starter templates
+- Provide new, maintained examples of a small haskell game implemented several ways, useful for learning or as starter templates, perhaps some docs
 - Produce a more fun and impressive game that raises the bar for haskell games
 - Stimulate more haskell game development
 
