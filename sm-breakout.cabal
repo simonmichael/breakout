@@ -13,7 +13,14 @@ maintainer:          simon@joyful.com
 -- copyright:
 -- category:
 build-type:          Simple
-extra-source-files:  CHANGELOG.md
+extra-source-files:
+  README.md
+  CHANGELOG.md
+  data/good-times.ttf
+  data/paddle.wav
+  data/hit.wav
+  data/wall.wav
+  data/Kick-Drum-1.wav
 
 executable sm-breakout
   default-language:  Haskell2010
@@ -30,6 +37,7 @@ executable sm-breakout
   -- other-extensions:
   build-depends:
        base >=4.14 && <4.15
+      ,file-embed >=0.0.13 && <0.14
       ,optparse-simple >=0.1 && <0.2
       ,random >=1.0 && <1.2
       -- ,safe >=0.3 && <0.4

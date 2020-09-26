@@ -1,5 +1,7 @@
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TemplateHaskell #-}
+
 module Graphics (
       module Graphics,
       module SDL,
@@ -8,6 +10,7 @@ module Graphics (
 )
 where
 import Data.Word (Word8)
+import Data.FileEmbed
 import SDL hiding (trace)
 import qualified SDL.Font
 import SDL.Font hiding (Mono,Normal,Color,initialize,quit,version)
@@ -21,6 +24,9 @@ black = V4 0 0 0 255 :: V4 Word8
 red = V4 255 0 0 255 :: V4 Word8
 white = V4 255 255 255 255 :: V4 Word8
 
+goodTimesFont :: Int -> IO Font
+goodTimesFont = decode $(embedFile "data/good-times.ttf")
+
 data Fonts = Fonts {
   fnt1, fnt2, fnt3 :: Font
 } deriving Show
@@ -28,9 +34,9 @@ data Fonts = Fonts {
 withFonts :: (Fonts -> IO a) -> IO a
 withFonts f = do
   SDL.Font.initialize
-  fnt1 <- load "data/good-times.ttf" 16
-  fnt2 <- load "data/good-times.ttf" 32
-  fnt3 <- load "data/good-times.ttf" 48
+  fnt1 <- goodTimesFont 16
+  fnt2 <- goodTimesFont 32
+  fnt3 <- goodTimesFont 48
   r <- f Fonts{..}
   free fnt1
   free fnt2
