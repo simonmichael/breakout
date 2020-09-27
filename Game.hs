@@ -188,7 +188,7 @@ gameStepBat game@Game {gsounds = Sounds {..}, gw, gh, gleftPressed, grightPresse
     (btx', btvx'''', hitwall) = incrementWithStop btx btvx''' 0 (gw - btw)
     (bty', btvy') = (gh - bth -40, 0)
     bat' = bat {btx = btx', bty = bty', btvx = btvx'''', btvy = btvy'}
-    sounds = [sndballLoss | hitwall]
+    sounds = [sndbatWall | hitwall]
 
 gameStepBall :: Game -> Ball -> (Ball, [Sound], Integer, Bool)
 gameStepBall
