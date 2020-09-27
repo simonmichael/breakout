@@ -20,9 +20,12 @@ import qualified Data.Text as T
 import Foreign.C (CInt)
 import Util
 
-black = V4 0 0 0 255 :: V4 Word8
-red = V4 255 0 0 255 :: V4 Word8
-white = V4 255 255 255 255 :: V4 Word8
+black = V4 0 0 0 255 :: Color
+red = V4 255 0 0 255 :: Color
+white = V4 255 255 255 255 :: Color
+
+clearWith :: MonadIO m => Renderer -> Color -> m ()
+clearWith renderer color = rendererDrawColor renderer $= color >> clear renderer
 
 goodTimesFont :: Int -> IO Font
 goodTimesFont = decode $(embedFile "data/good-times.ttf")

@@ -34,23 +34,24 @@ data Game = Game {
   gfpsmgr :: Framerate.Manager,
   gsounds :: Sounds,
   gfonts :: Fonts,
-  -- game state
-  gw :: CInt,         -- window dimensions
-  gh :: CInt,
-  gmode :: GameMode,  -- current game mode/scene
-  gtoplay :: [Sound], -- new sounds to play
-  gschedule :: Seconds,  -- if non-zero, future value of SDL.time at which some pending thing should happen
-  -- game objects
-  gbat :: Bat,
-  gball :: Ball,
-  gscore :: Score,
   -- current user input
   gQPressed :: Bool,
   gPPressed :: Bool,
   gshiftPPressed :: Bool,
   gleftPressed :: Bool,
   grightPressed :: Bool,
-  gspacePressed :: Bool
+  gspacePressed :: Bool,
+  -- game state
+  gw :: CInt,         -- window dimensions
+  gh :: CInt,
+  gmode :: GameMode,  -- current game mode/scene
+  gtoplay :: [Sound], -- new sounds to play
+  gschedule :: Seconds,  -- if non-zero, future value of SDL.time at which some pending thing should happen
+  gscore :: Score,
+  ghighscore :: Score,
+  -- game objects
+  gbat :: Bat,
+  gball :: Ball
   }
   deriving Show
 
@@ -60,8 +61,8 @@ data GameMode = GameAttract | GamePlay | GamePause | GamePauseScreenshot | GameO
 -- data GameEvent = Quit | Sound Sound
 
 newGame :: Maybe Word32 -> Window -> Renderer -> Framerate.Manager -> Sounds -> Fonts -> CInt -> CInt -> Game
-newGame totick window renderer fpsmgr sounds fonts width height = Game {
-  gendtick = totick,
+newGame endtick window renderer fpsmgr sounds fonts width height = Game {
+  gendtick = endtick,
   --
   gwindow = window,
   grenderer = renderer,
@@ -69,26 +70,30 @@ newGame totick window renderer fpsmgr sounds fonts width height = Game {
   gsounds = sounds,
   gfonts = fonts,
   --
-  gw = width,
-  gh = height,
-  gmode = GameAttract,
-  gtoplay = [],
-  gschedule = 0,
-  --
-  gbat = newBat width height,
-  gball = newBall,
-  gscore = 0,
-  --
   gQPressed = False,
   gPPressed = False,
   gshiftPPressed = False,
   gleftPressed = False,
   grightPressed = False,
-  gspacePressed = False
+  gspacePressed = False,
+  --
+  gw = width,
+  gh = height,
+  gmode = GameAttract,
+  gtoplay = [],
+  gschedule = 0,
+  gscore = 0,
+  ghighscore = 0,
+  --
+  gbat = newBat width height,
+  gball = newBall
   }
 
+-- Reset all game state except the high score.
 gameReset :: Game -> Game
-gameReset Game{..} = newGame gendtick gwindow grenderer gfpsmgr gsounds gfonts gw gh
+gameReset Game{..} = 
+  (newGame gendtick gwindow grenderer gfpsmgr gsounds gfonts gw gh)
+  {ghighscore=ghighscore}
 
 gameClearInput :: Game -> Game
 gameClearInput g = g{
@@ -151,20 +156,23 @@ gameStep tnow game@Game{..} =
 
     GamePause           | gspacePressed -> game{gmode=GamePlay}
     GamePauseScreenshot | gspacePressed -> game{gmode=GamePlay}
-    GamePause           | gQPressed     -> gameReset game
-    GamePauseScreenshot | gQPressed     -> gameReset game
+    GamePause           | gQPressed     -> gameQuit
+    GamePauseScreenshot | gQPressed     -> gameQuit
 
     GamePlay    | gshiftPPressed        -> game{gmode=GamePauseScreenshot}
     GamePlay    | gPPressed             -> game{gmode=GamePause}
-    GamePlay    | gameover || gQPressed -> game{gmode=GameOver, gQPressed=False, gtoplay=[sndballLoss gsounds], gschedule=tnow+gameoverdelay}
+    GamePlay    | gQPressed             -> gameQuit
+    GamePlay    | gameover              -> game{gmode=GameOver, gtoplay=[sndballLoss gsounds], gschedule=tnow+gameoverdelay}
     GamePlay                            -> game{gbat = bat, gball = ball, gtoplay = batsounds ++ ballsounds, gscore = score}
 
-    GameOver    | gQPressed || gspacePressed || tnow >= gschedule  -> gameReset game
+    GameOver    | gQPressed || gspacePressed || tnow >= gschedule
+                                        -> gameReset game{ghighscore=max ghighscore gscore}
     GameOver                            -> game{gbat = bat, gtoplay = batsounds}
 
     otherwise                           -> game
 
   where
+    gameQuit = (gameReset game){gtoplay=[sndballLoss gsounds]}
     (bat, batsounds) = gameStepBat game gbat
     (ball, ballsounds, score, gameover) = gameStepBall game gball
 
@@ -220,31 +228,47 @@ gameDraw game@Game {..} =
   case gfonts of
     Fonts{..} -> do
       t <- fromIntegral <$> ticks
-      let c = (black : replicate 40 red) `pickWith` (t `div` 100)
-      rendererDrawColor grenderer $= black
-      clear grenderer
-      let mid = V2 (gw `div` 2) (gh `div` 2)
+      let 
+        unstablered = (black : replicate 40 red) `pickWith` (t `div` 100)
+        mid = V2 (gw `div` 2) (gh `div` 2)
+
+      clearWith grenderer black
       case gmode of
+
         GameAttract -> do
-          drawTextCenteredAt grenderer fnt3 1 (mid - V2 0 40) white $ T.toUpper progname
-          drawTextCenteredAt grenderer fnt2 1 (mid + V2 0 60) c "SPACE to play"
-        GamePlay    -> do
+          let msgs = [
+                "SPACE to play",
+                "P to pause",
+                "Q/ESC to quit"
+                ]
+              msg = msgs `pickWith` (t `div` 5000)
+              highscore = "High score: " <> T.pack (show ghighscore)
+          drawTextCenteredAt grenderer fnt3 1 (mid - V2 0 100) white $ T.toUpper progname
+          drawTextCenteredAt grenderer fnt2 1 (mid + V2 0 0) red msg
+          drawTextCenteredAt grenderer fnt2 1 (mid + V2 0 100) white highscore
+
+        GamePlay -> do
           batDraw grenderer gbat
           ballDraw grenderer gball
           scoreDraw game
-        GamePause   -> do
+
+        GamePause -> do
           batDraw grenderer gbat
           ballDraw grenderer gball
           scoreDraw game
-          drawTextCenteredAt grenderer fnt2 1 mid c "SPACE to resume"
+          drawTextCenteredAt grenderer fnt2 1 mid unstablered "SPACE to resume"
+
         GamePauseScreenshot -> do
           batDraw grenderer gbat
           ballDraw grenderer gball
           scoreDraw game
-        GameOver    -> do
+
+        GameOver -> do
           batDraw grenderer gbat
           scoreDraw game
           drawTextCenteredAt grenderer fnt2 1 mid red "GAME OVER"
+          when (gscore > ghighscore) $
+            drawTextCenteredAt grenderer fnt2 1 (mid + V2 0 100) white $ "New high score !"
 
 scoreDraw :: Game -> IO ()
 scoreDraw Game {grenderer, gfonts = Fonts {..}, gw, gh, gscore} = do
@@ -256,4 +280,3 @@ scoreDraw Game {grenderer, gfonts = Fonts {..}, gw, gh, gscore} = do
   let (tx, ty) = (gw - 10 - tw, gh - 10 - th)
       rect = Rectangle (P $ V2 tx ty) (V2 tw th)
   drawText grenderer font white rect t
-
