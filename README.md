@@ -4,6 +4,17 @@ This was one of my first Haskell projects, in 2007, now updated in 2020.
 ![screenshot1](data/screenshot1.png)
 ![screenshot2](data/screenshot2.png)
 
+## Features
+
+- Runs on Windows, Mac, Unix (requires SDL 2 and GHC 8.10+)
+- Standalone Executable (all assets included)
+- A Bat
+- A Bouncing Ball
+- Sound Effects
+- High Score
+- Pause
+- 500 lines of Simple Haskell
+
 ## Install
 
 1. Install SDL 2 libs for your system ([1], [2], `brew install sdl2`, or similar)
@@ -11,18 +22,13 @@ This was one of my first Haskell projects, in 2007, now updated in 2020.
 3. `cd sm-breakout`
 4. `stack run`
 
-It should build on any platform which has the SDL libs and GHC 8.10+.
-For now it must be run from the source directory, to find files in `./data/*`.
-
 [1]: https://www.libsdl.org/download-2.0.php
 [2]: https://repology.org/project/sdl/badges
 
 
-Writing more here may be the kiss of death... but assuming this project continues:
-
 ## Goals
 
-This project's goals are:
+While it continues... this project's goals are:
 
 - Provide amusement and re-creation for myself
 - Research, learn, uplevel my [haskell] game dev powers
