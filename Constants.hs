@@ -21,6 +21,7 @@ framerate = 60 :: Int  -- fps
 -- increase to multiply all speeds (default 1), but be careful not to overflow CInt
 speedup = 2 :: CInt
 
+-- How long to show the game over screen.
 gameoverdelay = 5 :: Seconds
 
 defwindowwidth = 500 :: CInt

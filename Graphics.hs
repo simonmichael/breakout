@@ -1,4 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 
@@ -52,7 +53,9 @@ textSize f t = do
   (tw, th) <- size f t
   return (fromIntegral tw, fromIntegral th)
 
+-- Draw some centered text. Does nothing if the text is empty.
 drawTextCenteredAt :: MonadIO m => Renderer -> Font -> CInt -> V2 CInt -> Color -> T.Text -> m ()
+drawTextCenteredAt _ _ _ _ _ "" = return ()
 drawTextCenteredAt renderer font scale (V2 x y) color t = do
   (tw, th) <- both (scale*) <$> textSize font t
   let 
@@ -61,8 +64,10 @@ drawTextCenteredAt renderer font scale (V2 x y) color t = do
     rect = Rectangle (P $ V2 tx ty) (V2 tw th)
   drawText renderer font color rect t
 
+-- Draw some text. Does nothing if the text is empty.
 -- XXX creates a new surface/texture every time, should cache or pregenerate these
 drawText :: MonadIO m => Renderer -> Font -> Color -> Rectangle CInt -> T.Text -> m ()
+drawText _ _ _ _ "" = return ()
 drawText renderer font color rect t = do
   s <- blended font color t
   t <- createTextureFromSurface renderer s

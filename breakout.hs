@@ -50,7 +50,10 @@ main = do
       cursorVisible $= False
       renderer <- createRenderer window (-1) defaultRenderer{ rendererType = AcceleratedVSyncRenderer }
       Framerate.with framerate $ \fpsmgr -> do
-        initialticks <- ticks
-        let endtick = fmap (initialticks +) for
-        gameLoop (newGame endtick window renderer fpsmgr sounds fonts defwindowwidth defwindowwidth)
+        tnow <- time
+        ticks0 <- ticks
+        let
+          endtick = fmap (ticks0 +) for
+          game = newGame endtick window renderer fpsmgr sounds fonts defwindowwidth defwindowwidth tnow
+        gameLoop game
 

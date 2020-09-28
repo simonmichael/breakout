@@ -21,6 +21,7 @@ import Util
 import Control.Concurrent (threadDelay)
 import Data.Word (Word32)
 import Data.Maybe (fromJust)
+import Data.Function ((&))
 
 type Score = Integer
 
@@ -42,13 +43,14 @@ data Game = Game {
   grightPressed :: Bool,
   gspacePressed :: Bool,
   -- game state
+  ghighscore :: Score,
   gw :: CInt,         -- window dimensions
   gh :: CInt,
+  gnewsounds :: [Sound], -- new sounds to play
   gmode :: GameMode,  -- current game mode/scene
-  gtoplay :: [Sound], -- new sounds to play
-  gschedule :: Seconds,  -- if non-zero, future value of SDL.time at which some pending thing should happen
+  gmodeStartTime :: SDLTime,  -- value of SDL.time at which this mode was entered (excluding Pause mode)
+  gmodeAge :: Seconds,  -- how long have we been in this mode (excluding Pause mode)
   gscore :: Score,
-  ghighscore :: Score,
   -- game objects
   gbat :: Bat,
   gball :: Ball
@@ -58,10 +60,8 @@ data Game = Game {
 data GameMode = GameAttract | GamePlay | GamePause | GamePauseScreenshot | GameOver | GameExit
   deriving (Eq,Show)
 
--- data GameEvent = Quit | Sound Sound
-
-newGame :: Maybe Word32 -> Window -> Renderer -> Framerate.Manager -> Sounds -> Fonts -> CInt -> CInt -> Game
-newGame endtick window renderer fpsmgr sounds fonts width height = Game {
+newGame :: Maybe Word32 -> Window -> Renderer -> Framerate.Manager -> Sounds -> Fonts -> CInt -> CInt -> SDLTime -> Game
+newGame endtick window renderer fpsmgr sounds fonts width height starttime = Game {
   gendtick = endtick,
   --
   gwindow = window,
@@ -77,24 +77,42 @@ newGame endtick window renderer fpsmgr sounds fonts width height = Game {
   grightPressed = False,
   gspacePressed = False,
   --
+  ghighscore = 0,
   gw = width,
   gh = height,
+  gnewsounds = [],
   gmode = GameAttract,
-  gtoplay = [],
-  gschedule = 0,
+  gmodeStartTime = starttime,
+  gmodeAge = 0,
   gscore = 0,
-  ghighscore = 0,
   --
   gbat = newBat width height,
   gball = newBall
   }
 
--- Reset all game state except the high score.
-gameReset :: Game -> Game
-gameReset Game{..} = 
-  (newGame gendtick gwindow grenderer gfpsmgr gsounds gfonts gw gh)
-  {ghighscore=ghighscore}
+-- Reset all game state except the high score, and set the mode's start time.
+gameReset :: SDLTime -> Game -> Game
+gameReset tnow Game{..} = 
+  (newGame gendtick gwindow grenderer gfpsmgr gsounds gfonts gw gh 0)
+  {ghighscore=ghighscore, gmodeStartTime=tnow}
 
+-- Switch the game mode, setting the new mode's start time and age.
+gameModeSwitch :: SDLTime -> GameMode -> Game -> Game
+gameModeSwitch tnow mode game = game{gmode=mode, gmodeStartTime=tnow, gmodeAge=0}
+
+-- Give the current SDL time, update the game mode's current age.
+gameModeAgeUpdate :: SDLTime -> Game -> Game
+gameModeAgeUpdate tnow game@Game{..} = game{gmodeAge = tnow - gmodeStartTime} 
+
+-- Add the given sound, named by a Sounds field accessor, to the list of sounds to be played.
+gameQueueSound :: (Sounds -> Sound) -> Game -> Game
+gameQueueSound snd game@Game{..} = game{gnewsounds=gnewsounds++[snd gsounds]}
+
+-- Add the given Sounds to the list of sounds to be played.
+gameQueueSounds :: [Sound] -> Game -> Game
+gameQueueSounds snds game@Game{..} = game{gnewsounds=gnewsounds++snds}
+
+-- Reset keypress indicators.
 gameClearInput :: Game -> Game
 gameClearInput g = g{
   gQPressed = False,
@@ -108,9 +126,9 @@ gameClearInput g = g{
 gameLoop :: Game -> IO ()
 gameLoop game@Game{gendtick,gwindow,grenderer,gfpsmgr,gsounds,gfonts,gw,gh} = do
   tticks <- ticks
-  tsecs <- time
+  tnow <- time
   game' <- gameProcessSdlEvents game
-  let game'' = gameStep tsecs game'
+  let game'' = gameStep tnow game'
   if (gmode game'' /= GameExit && (gendtick==Nothing || tticks < fromJust gendtick))
   then do
     gameDraw game''
@@ -148,33 +166,36 @@ gameProcessSdlEvents game = pollEvents >>= return . foldl' processEvent game
       | otherwise = game
 
 gameStep :: Seconds -> Game -> Game
-gameStep tnow game@Game{..} =
-  case gmode of
-
-    GameAttract | gQPressed             -> game{gmode=GameExit}
-    GameAttract | gspacePressed         -> game{gmode=GamePlay}
-
-    GamePause           | gspacePressed -> game{gmode=GamePlay}
-    GamePauseScreenshot | gspacePressed -> game{gmode=GamePlay}
-    GamePause           | gQPressed     -> gameQuit
-    GamePauseScreenshot | gQPressed     -> gameQuit
-
-    GamePlay    | gshiftPPressed        -> game{gmode=GamePauseScreenshot}
-    GamePlay    | gPPressed             -> game{gmode=GamePause}
-    GamePlay    | gQPressed             -> gameQuit
-    GamePlay    | gameover              -> game{gmode=GameOver, gtoplay=[sndballLoss gsounds], gschedule=tnow+gameoverdelay}
-    GamePlay                            -> game{gbat = bat, gball = ball, gtoplay = batsounds ++ ballsounds, gscore = score}
-
-    GameOver    | gQPressed || gspacePressed || tnow >= gschedule
-                                        -> gameReset game{ghighscore=max ghighscore gscore}
-    GameOver                            -> game{gbat = bat, gtoplay = batsounds}
-
-    otherwise                           -> game
-
-  where
-    gameQuit = (gameReset game){gtoplay=[sndballLoss gsounds]}
+gameStep tnow game'@Game{..} =
+  let 
+    game = gameModeAgeUpdate tnow game'
     (bat, batsounds) = gameStepBat game gbat
     (ball, ballsounds, score, gameover) = gameStepBall game gball
+    gameQuit = gameQueueSound sndballLoss $ gameReset tnow game
+    dbg = const id
+    -- dbg msg = trace (show gmode++" "++msg)
+
+  in case gmode of
+
+    GameAttract | gQPressed             -> dbg "q" $ gameModeSwitch tnow GameExit game
+    GameAttract | gspacePressed         -> dbg "space" $ gameModeSwitch tnow GamePlay game
+
+    GamePause           | gspacePressed -> dbg "space" $ gameModeSwitch tnow GamePlay game
+    GamePauseScreenshot | gspacePressed -> dbg "space" $ gameModeSwitch tnow GamePlay game
+    GamePause           | gQPressed     -> dbg "q" $ gameQuit
+    GamePauseScreenshot | gQPressed     -> dbg "q" $ gameQuit
+
+    GamePlay    | gshiftPPressed        -> dbg "P" $ gameModeSwitch tnow GamePauseScreenshot game
+    GamePlay    | gPPressed             -> dbg "p" $ gameModeSwitch tnow GamePause game
+    GamePlay    | gQPressed             -> dbg "q" $ gameQuit
+    GamePlay    | gameover              -> dbg "game over" $ gameModeSwitch tnow GameOver $ gameQueueSound sndballLoss game
+    GamePlay                            -> dbg "" $ gameQueueSounds (batsounds++ballsounds) game{gbat = bat, gball = ball, gscore = score}
+
+    GameOver    | gQPressed || gspacePressed || gmodeAge >= gameoverdelay
+                                        -> dbg "q/space/timeout" $ gameReset tnow game{ghighscore=max ghighscore gscore}
+    GameOver                            -> dbg "" $ gameQueueSounds batsounds game{gbat = bat}
+
+    otherwise                           -> dbg "otherwise" $ game
 
 gameStepBat :: Game -> Bat -> (Bat, [Sound])
 gameStepBat game@Game {gsounds = Sounds {..}, gw, gh, gleftPressed, grightPressed} bat@Bat {..} = (bat', sounds)
@@ -219,9 +240,9 @@ gameStepBall
         | otherwise = gscore
 
 gamePlayNewSounds :: Game -> IO Game
-gamePlayNewSounds game@Game {gtoplay} = do
-  mapM_ play' gtoplay
-  return game {gtoplay = []}
+gamePlayNewSounds game@Game {gnewsounds} = do
+  mapM_ play' gnewsounds
+  return game {gnewsounds = []}
 
 gameDraw :: Game -> IO ()
 gameDraw game@Game {..} =
@@ -236,16 +257,19 @@ gameDraw game@Game {..} =
       case gmode of
 
         GameAttract -> do
+          let highscore = "High score: " <> T.pack (show ghighscore)
           let msgs = [
+                "",
                 "SPACE to play",
+                "LEFT/RIGHT to move",
                 "P to pause",
                 "Q/ESC to quit"
                 ]
-              msg = msgs `pickWith` (t `div` 5000)
-              highscore = "High score: " <> T.pack (show ghighscore)
+              msg = msgs `pickWith` (round gmodeAge `div` 2)
           drawTextCenteredAt grenderer fnt3 1 (mid - V2 0 100) white $ T.toUpper progname
           drawTextCenteredAt grenderer fnt2 1 (mid + V2 0 0) red msg
-          drawTextCenteredAt grenderer fnt2 1 (mid + V2 0 100) white highscore
+          drawTextCenteredAt grenderer fnt2 1 (mid + V2 0 100) white highscore -- & when (gmodeAge > 1)
+            -- something seems off with gmodeAge at start, highscore at t=1 appears too close before msg at t=2
 
         GamePlay -> do
           batDraw grenderer gbat

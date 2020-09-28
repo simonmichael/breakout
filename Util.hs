@@ -31,6 +31,7 @@ tracewith f e = trace (f e) e
 --
 
 type Seconds = Double
+type SDLTime = Seconds
 
 type X = CInt
 type Y = CInt
