@@ -30,15 +30,22 @@ import Options.Applicative.Simple
 
 main :: IO ()
 main = do
-  (for :: Maybe Word32,()) <- simpleOptions 
+  -- parse Opts, defined in Game.hs
+  (opts'@Opts{..},()) <- simpleOptions
     progversion
     usageheading
     usagebody
-    (optional $ option auto $ long "for" <> metavar "TICKS"
-      <> help "exit after running the main loop for this many ticks")
+    (Opts 
+      <$> (switch $ long "debug" <> help "show debug info")
+      <*> (optional $ option auto $ long "for" <> metavar "TICKS" <> help "exit after running the main loop for this many ticks")
+    )
     empty
 
   initializeAll
+  -- convert Opts{oendtick} from a count of ticks to a future SDL tick time
+  tick0 <- ticks
+  let opts = opts'{oendtick = fmap (tick0 +) oendtick}
+
   withSounds $ \sounds@Sounds{..} -> do
     withFonts $ \fonts -> do
       window <- createWindow progname defaultWindow{ 
@@ -51,9 +58,6 @@ main = do
       renderer <- createRenderer window (-1) defaultRenderer{ rendererType = AcceleratedVSyncRenderer }
       Framerate.with framerate $ \fpsmgr -> do
         tnow <- time
-        ticks0 <- ticks
-        let
-          endtick = fmap (ticks0 +) for
-          game = newGame endtick window renderer fpsmgr sounds fonts defwindowwidth defwindowwidth tnow
-        gameLoop game
+        let game0 = newGame opts window renderer fpsmgr sounds fonts defwindowwidth defwindowwidth tnow
+        gameLoop game0
 

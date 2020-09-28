@@ -5,6 +5,7 @@ module Util
   )
 where
 
+import Data.Word (Word32)
 import Debug.Trace
 import Foreign.C (CInt)
 import SDL hiding (trace)
@@ -29,6 +30,9 @@ tracewith :: (a -> String) -> a -> a
 tracewith f e = trace (f e) e
 
 --
+
+type Ticks = Word32
+type Tick = Ticks
 
 type Seconds = Double
 type SDLTime = Seconds

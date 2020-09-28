@@ -19,16 +19,21 @@ import Sound
 import Constants
 import Util
 import Control.Concurrent (threadDelay)
-import Data.Word (Word32)
 import Data.Maybe (fromJust)
 import Data.Function ((&))
+
+data Opts = Opts
+  { odebug :: Bool
+  , oendtick :: Maybe Tick  -- an SDL ticks value at which the program should exit
+  }
+  deriving Show
 
 type Score = Integer
 
 -- app, window, game state
 data Game = Game {
   -- config
-  gendtick :: Maybe Word32,  -- a time in SDL ticks after which the program should exit
+  gopts :: Opts,
   -- resources
   gwindow :: Window,
   grenderer :: Renderer,
@@ -60,9 +65,9 @@ data Game = Game {
 data GameMode = GameAttract | GamePlay | GamePause | GamePauseScreenshot | GameOver | GameExit
   deriving (Eq,Show)
 
-newGame :: Maybe Word32 -> Window -> Renderer -> Framerate.Manager -> Sounds -> Fonts -> CInt -> CInt -> SDLTime -> Game
-newGame endtick window renderer fpsmgr sounds fonts width height starttime = Game {
-  gendtick = endtick,
+newGame :: Opts -> Window -> Renderer -> Framerate.Manager -> Sounds -> Fonts -> CInt -> CInt -> SDLTime -> Game
+newGame opts window renderer fpsmgr sounds fonts width height starttime = Game {
+  gopts = opts,
   --
   gwindow = window,
   grenderer = renderer,
@@ -93,7 +98,7 @@ newGame endtick window renderer fpsmgr sounds fonts width height starttime = Gam
 -- Reset all game state except the high score, and set the mode's start time.
 gameReset :: SDLTime -> Game -> Game
 gameReset tnow Game{..} = 
-  (newGame gendtick gwindow grenderer gfpsmgr gsounds gfonts gw gh 0)
+  (newGame gopts gwindow grenderer gfpsmgr gsounds gfonts gw gh 0)
   {ghighscore=ghighscore, gmodeStartTime=tnow}
 
 -- Switch the game mode, setting the new mode's start time and age.
@@ -124,12 +129,12 @@ gameClearInput g = g{
   }
 
 gameLoop :: Game -> IO ()
-gameLoop game@Game{gendtick,gwindow,grenderer,gfpsmgr,gsounds,gfonts,gw,gh} = do
+gameLoop game@Game{gopts=Opts{oendtick},gwindow,grenderer,gfpsmgr,gsounds,gfonts,gw,gh} = do
   tticks <- ticks
   tnow <- time
   game' <- gameProcessSdlEvents game
   let game'' = gameStep tnow game'
-  if (gmode game'' /= GameExit && (gendtick==Nothing || tticks < fromJust gendtick))
+  if (gmode game'' /= GameExit && (oendtick==Nothing || tticks < fromJust oendtick))
   then do
     gameDraw game''
     present grenderer
@@ -172,8 +177,7 @@ gameStep tnow game'@Game{..} =
     (bat, batsounds) = gameStepBat game gbat
     (ball, ballsounds, score, gameover) = gameStepBall game gball
     gameQuit = gameQueueSound sndballLoss $ gameReset tnow game
-    dbg = const id
-    -- dbg msg = trace (show gmode++" "++msg)
+    dbg msg = if odebug gopts then trace (show gmode++" "++msg) else id
 
   in case gmode of
 
@@ -195,7 +199,7 @@ gameStep tnow game'@Game{..} =
                                         -> dbg "q/space/timeout" $ gameReset tnow game{ghighscore=max ghighscore gscore}
     GameOver                            -> dbg "" $ gameQueueSounds batsounds game{gbat = bat}
 
-    otherwise                           -> dbg "otherwise" $ game
+    otherwise                           -> dbg "" $ game
 
 gameStepBat :: Game -> Bat -> (Bat, [Sound])
 gameStepBat game@Game {gsounds = Sounds {..}, gw, gh, gleftPressed, grightPressed} bat@Bat {..} = (bat', sounds)
