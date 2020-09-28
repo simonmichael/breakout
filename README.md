@@ -8,12 +8,12 @@ This was one of my first Haskell projects, in 2007, now updated in 2020.
 
 - Runs on Windows, Mac, Unix (requires SDL 2 and GHC 8.10+)
 - Standalone Executable (all assets included)
+- 500 lines of Simple Haskell
 - A Bat
 - A Bouncing Ball
 - Sound Effects
 - High Score
 - Pause
-- 500 lines of Simple Haskell
 
 ## Install
 

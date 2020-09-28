@@ -7,9 +7,12 @@
 - optimise cpu
 
 ## at some point
+- more sound
+- bricks / other gameplay elements
+- make it work when run from emacs shell
+- make it respect Ctrl-c (ghcid --reload, entr -r)
 - persistent high score
 - shared high score
-- bricks
 - levels
 - polar coordinates
 - multiball

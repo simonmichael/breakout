@@ -2,7 +2,7 @@ cabal-version:       >=1.10
 
 name:                sm-breakout
 version:             0.1
--- synopsis:
+synopsis:            A Breakout prototype, for exploring haskell game dev
 -- description:
 -- bug-reports:
 -- GPLv3+
