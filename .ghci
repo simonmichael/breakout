@@ -5,3 +5,4 @@
 
 :set -XOverloadedStrings
 :set -XRecordWildCards
+:set -XScopedTypeVariables
