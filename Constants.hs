@@ -7,9 +7,9 @@ import Foreign.C (CInt)
 -- import qualified SDL.Framerate as Framerate
 import Util ( Seconds )
 
-progname = "sm-breakout" :: T.Text
+progname = "sm-breakout"
 progversion = "0.1"
-usageheading = T.unpack progname ++ " " ++ progversion
+usageheading = progname ++ " " ++ progversion
 usagebody = ""
 
 -- Our aspirational frame rate. We will show no more than this many frames per second,

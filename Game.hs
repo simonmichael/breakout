@@ -1,16 +1,22 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Game where
+import Control.Exception
 import Control.Monad
 import Control.Monad.IO.Class (MonadIO)
 import Data.List (foldl')
 import qualified Data.Text as T
 import Foreign.C (CInt)
+import Safe
 import SDL hiding (trace)
 import qualified SDL.Framerate as Framerate
+import System.Directory
 import System.Exit (exitSuccess)
+import System.FilePath
 
 import Ball
 import Bat
@@ -21,19 +27,31 @@ import Util
 import Control.Concurrent (threadDelay)
 import Data.Maybe (fromJust)
 import Data.Function ((&))
+import Data.Tini.Configurable
+import System.IO (stderr, hPutStrLn)
 
+-- Command line options.
 data Opts = Opts
   { odebug :: Bool
   , oendtick :: Maybe Tick  -- an SDL ticks value at which the program should exit
   }
   deriving Show
 
-type Score = Integer
+type Score = Int
 
--- app, window, game state
+-- Persistent state saved to filesystem.
+data SavedState = SavedState
+  { sshighscore :: Score
+  } deriving (Generic, Show, Read, Eq)
+
+instance Configurable SavedState where
+  defaultConfig = SavedState { sshighscore = 0 }
+
+-- App, window, game state.
 data Game = Game {
   -- config
   gopts :: Opts,
+  gsaved :: SavedState,
   -- resources
   gwindow :: Window,
   grenderer :: Renderer,
@@ -48,7 +66,6 @@ data Game = Game {
   grightPressed :: Bool,
   gspacePressed :: Bool,
   -- game state
-  ghighscore :: Score,
   gw :: CInt,         -- window dimensions
   gh :: CInt,
   gnewsounds :: [Sound], -- new sounds to play
@@ -62,12 +79,13 @@ data Game = Game {
   }
   deriving Show
 
-data GameMode = GameAttract | GamePlay | GamePause | GamePauseScreenshot | GameOver | GameExit
+data GameMode = GameAttract | GamePlay | GamePause | GamePauseScreenshot | GameOver | GameOverHighScore | GameExit
   deriving (Eq,Show)
 
-newGame :: Opts -> Window -> Renderer -> Framerate.Manager -> Sounds -> Fonts -> CInt -> CInt -> SDLTime -> Game
-newGame opts window renderer fpsmgr sounds fonts width height starttime = Game {
+newGame :: Opts -> SavedState -> Window -> Renderer -> Framerate.Manager -> Sounds -> Fonts -> CInt -> CInt -> SDLTime -> Game
+newGame opts saved window renderer fpsmgr sounds fonts width height starttime = Game {
   gopts = opts,
+  gsaved = saved,
   --
   gwindow = window,
   grenderer = renderer,
@@ -82,7 +100,6 @@ newGame opts window renderer fpsmgr sounds fonts width height starttime = Game {
   grightPressed = False,
   gspacePressed = False,
   --
-  ghighscore = 0,
   gw = width,
   gh = height,
   gnewsounds = [],
@@ -95,11 +112,11 @@ newGame opts window renderer fpsmgr sounds fonts width height starttime = Game {
   gball = newBall
   }
 
--- Reset all game state except the high score, and set the mode's start time.
+-- Reset all game state except the saved state, and set the mode's start time.
 gameReset :: SDLTime -> Game -> Game
 gameReset tnow Game{..} = 
-  (newGame gopts gwindow grenderer gfpsmgr gsounds gfonts gw gh 0)
-  {ghighscore=ghighscore, gmodeStartTime=tnow}
+  (newGame gopts gsaved gwindow grenderer gfpsmgr gsounds gfonts gw gh 0)
+  {gsaved=gsaved, gmodeStartTime=tnow}
 
 -- Switch the game mode, setting the new mode's start time and age.
 gameModeSwitch :: SDLTime -> GameMode -> Game -> Game
@@ -128,12 +145,46 @@ gameClearInput g = g{
   gspacePressed = False
   }
 
+-- Where to save persistent state.
+saveFile :: IO FilePath
+saveFile = (</> progname <.> "save") <$> getXdgDirectory XdgData progname
+
+-- Update the game's saveable state from the filesystem.
+-- If that fails, return the game unchanged and an error message.
+gameLoad :: Game -> IO (Game, Maybe String)
+gameLoad game = do
+  -- save <- saveFile >>= readConfigFile
+  handle (\(e::IOException) -> return (game, Just $ show e)) $ do
+    s <- saveFile >>= readFile
+    return $
+      case readEitherSafe s of
+        Right save -> (game{gsaved=save}, Nothing)
+        Left e     -> (game, Just e)
+
+-- Write the game's saveable state to the filesystem, if possible.
+-- Catch any error and return the message.
+gameSave :: Game -> IO (Maybe String)
+gameSave Game{gsaved} = handle (\(e::IOException) -> return $ Just $ show e) $ do
+  f <- saveFile
+  createDirectoryIfMissing True $ takeDirectory f
+  -- writeConfigFile f gsaved  -- https://github.com/valderman/tini/issues/1
+  writeFile f $ show gsaved
+  return Nothing    
+
 gameLoop :: Game -> IO ()
 gameLoop game@Game{gopts=Opts{oendtick},gwindow,grenderer,gfpsmgr,gsounds,gfonts,gw,gh} = do
   tticks <- ticks
   tnow <- time
   game' <- gameProcessSdlEvents game
   let game'' = gameStep tnow game'
+
+  -- save high score if it has changed
+  when (sshighscore (gsaved game'') /= sshighscore (gsaved game)) $ do
+    merr <- gameSave game''
+    case merr of
+      Just err -> hPutStrLn stderr $ "Could not save high score: " ++ err
+      Nothing  -> return ()
+
   if (gmode game'' /= GameExit && (oendtick==Nothing || tticks < fromJust oendtick))
   then do
     gameDraw game''
@@ -178,6 +229,7 @@ gameStep tnow game'@Game{..} =
     (ball, ballsounds, score, gameover) = gameStepBall game gball
     gameQuit = gameQueueSound sndballLoss $ gameReset tnow game
     dbg msg = if odebug gopts then trace (show gmode++" "++msg) else id
+    SavedState{sshighscore} = gsaved
 
   in case gmode of
 
@@ -192,12 +244,16 @@ gameStep tnow game'@Game{..} =
     GamePlay    | gshiftPPressed        -> dbg "P" $ gameModeSwitch tnow GamePauseScreenshot game
     GamePlay    | gPPressed             -> dbg "p" $ gameModeSwitch tnow GamePause game
     GamePlay    | gQPressed             -> dbg "q" $ gameQuit
+    GamePlay    | gameover && gscore > sshighscore 
+                                        -> dbg "game over high score" $ gameModeSwitch tnow GameOverHighScore $ 
+                                            gameQueueSound sndballLoss $ game{gsaved=gsaved{sshighscore=gscore}}
     GamePlay    | gameover              -> dbg "game over" $ gameModeSwitch tnow GameOver $ gameQueueSound sndballLoss game
     GamePlay                            -> dbg "" $ gameQueueSounds (batsounds++ballsounds) game{gbat = bat, gball = ball, gscore = score}
 
-    GameOver    | gQPressed || gspacePressed || gmodeAge >= gameoverdelay
-                                        -> dbg "q/space/timeout" $ gameReset tnow game{ghighscore=max ghighscore gscore}
-    GameOver                            -> dbg "" $ gameQueueSounds batsounds game{gbat = bat}
+    m | m `elem` [GameOver, GameOverHighScore] && (gQPressed || gspacePressed || gmodeAge >= gameoverdelay)
+                                        -> dbg "q/space/timeout" $ gameReset tnow game
+    m | m `elem` [GameOver, GameOverHighScore]                            
+                                        -> dbg "" $ gameQueueSounds batsounds game{gbat = bat}
 
     otherwise                           -> dbg "" $ game
 
@@ -215,7 +271,7 @@ gameStepBat game@Game {gsounds = Sounds {..}, gw, gh, gleftPressed, grightPresse
     bat' = bat {btx = btx', bty = bty', btvx = btvx'''', btvy = btvy'}
     sounds = [sndbatWall | hitwall]
 
-gameStepBall :: Game -> Ball -> (Ball, [Sound], Integer, Bool)
+gameStepBall :: Game -> Ball -> (Ball, [Sound], Score, Bool)
 gameStepBall
   game@Game {gsounds = Sounds {..}, gw, gh, gleftPressed, grightPressed, gbat = Bat {..}, gscore}
   ball@Ball {..} =
@@ -261,7 +317,7 @@ gameDraw game@Game {..} =
       case gmode of
 
         GameAttract -> do
-          let highscore = "High score: " <> T.pack (show ghighscore)
+          let highscore = "High score: " <> T.pack (show $ sshighscore gsaved)
           let msgs = [
                 "",
                 "SPACE to play",
@@ -270,7 +326,7 @@ gameDraw game@Game {..} =
                 "Q/ESC to quit"
                 ]
               msg = msgs `pickWith` (round gmodeAge `div` 2)
-          drawTextCenteredAt grenderer fnt3 1 (mid - V2 0 100) white $ T.toUpper progname
+          drawTextCenteredAt grenderer fnt3 1 (mid - V2 0 100) white $ T.toUpper $ T.pack progname
           drawTextCenteredAt grenderer fnt2 1 (mid + V2 0 0) red msg
           drawTextCenteredAt grenderer fnt2 1 (mid + V2 0 100) white highscore -- & when (gmodeAge > 1)
             -- something seems off with gmodeAge at start, highscore at t=1 appears too close before msg at t=2
@@ -280,22 +336,18 @@ gameDraw game@Game {..} =
           ballDraw grenderer gball
           scoreDraw game
 
-        GamePause -> do
+        m | m `elem` [GamePause, GamePauseScreenshot] -> do
           batDraw grenderer gbat
           ballDraw grenderer gball
           scoreDraw game
-          drawTextCenteredAt grenderer fnt2 1 mid unstablered "SPACE to resume"
+          unless (m==GamePauseScreenshot) $
+            drawTextCenteredAt grenderer fnt2 1 mid unstablered "SPACE to resume"
 
-        GamePauseScreenshot -> do
-          batDraw grenderer gbat
-          ballDraw grenderer gball
-          scoreDraw game
-
-        GameOver -> do
+        m | m `elem` [GameOver, GameOverHighScore] -> do
           batDraw grenderer gbat
           scoreDraw game
           drawTextCenteredAt grenderer fnt2 1 mid red "GAME OVER"
-          when (gscore > ghighscore) $
+          when (m==GameOverHighScore) $
             drawTextCenteredAt grenderer fnt2 1 (mid + V2 0 100) white $ "New high score !"
 
 scoreDraw :: Game -> IO ()

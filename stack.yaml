@@ -3,4 +3,5 @@ resolver: nightly-2020-09-16
 packages:
 - .
 
-# extra-deps: []
+extra-deps:
+- tini-0.1.0.0

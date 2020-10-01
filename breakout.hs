@@ -17,6 +17,7 @@ import Options.Applicative.Simple
 import qualified SDL.Framerate as Framerate
 import System.Environment
 import System.Exit (exitSuccess)
+import System.IO (stderr, hPutStrLn)
 
 import Util
 import Constants
@@ -25,8 +26,10 @@ import Graphics
 import Sound
 import Data.Word (Word32)
 import Data.Time.Clock
+import Data.Tini.Configurable -- hiding (empty)
 
 import Options.Applicative.Simple
+import qualified Data.Text as T
 
 main :: IO ()
 main = do
@@ -41,6 +44,9 @@ main = do
     )
     empty
 
+  -- confdir <- getXdgDirectory XdgConfig progname
+  -- Just ini <- readIniFile $ confdir </> progname <.> "conf" 
+
   initializeAll
   -- convert Opts{oendtick} from a count of ticks to a future SDL tick time
   tick0 <- ticks
@@ -48,7 +54,7 @@ main = do
 
   withSounds $ \sounds@Sounds{..} -> do
     withFonts $ \fonts -> do
-      window <- createWindow progname defaultWindow{ 
+      window <- createWindow (T.pack progname) defaultWindow{ 
         windowInitialSize = V2 defwindowwidth defwindowheight ,
         -- windowMode = FullscreenDesktop,
         windowPosition = Centered
@@ -58,6 +64,9 @@ main = do
       renderer <- createRenderer window (-1) defaultRenderer{ rendererType = AcceleratedVSyncRenderer }
       Framerate.with framerate $ \fpsmgr -> do
         tnow <- time
-        let game0 = newGame opts window renderer fpsmgr sounds fonts defwindowwidth defwindowwidth tnow
-        gameLoop game0
-
+        let game0 = newGame opts defaultConfig window renderer fpsmgr sounds fonts defwindowwidth defwindowwidth tnow
+        (game, merr) <- gameLoad game0
+        case merr of
+          Just err -> hPutStrLn stderr $ "Could not load high score: " ++ err
+          Nothing  -> return ()
+        gameLoop game
