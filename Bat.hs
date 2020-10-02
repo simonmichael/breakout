@@ -1,12 +1,11 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NamedFieldPuns #-}
+
 module Bat
 where
-import Foreign.C (CInt)
-
+import Constants
 import Graphics
 import Util
-import Constants
 
 data Bat = Bat {
   btw :: CInt,

@@ -1,12 +1,11 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NamedFieldPuns #-}
+
 module Ball
 where
-import Foreign.C (CInt)
-
+import Constants
 import Graphics
 import Util
-import Constants
 
 data Ball = Ball {
   bw :: CInt,

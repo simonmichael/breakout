@@ -2,13 +2,16 @@
 module Util
   ( module Util,
     module Debug.Trace,
+    module Foreign.C.Types,
+    module Text.Pretty.Simple,
   )
 where
 
 import Data.Word (Word32)
 import Debug.Trace
-import Foreign.C (CInt)
+import Foreign.C.Types
 import SDL hiding (trace)
+import Text.Pretty.Simple (pPrint)
 
 -- debugging
 

@@ -20,6 +20,7 @@ import System.FilePath
 
 import Ball
 import Bat
+import Brick
 import Graphics
 import Sound
 import Constants
@@ -75,7 +76,8 @@ data Game = Game {
   gscore :: Score,
   -- game objects
   gbat :: Bat,
-  gball :: Ball
+  gball :: Ball,
+  gbricks :: [Brick]
   }
   deriving Show
 
@@ -109,7 +111,8 @@ newGame opts saved window renderer fpsmgr sounds fonts width height starttime = 
   gscore = 0,
   --
   gbat = newBat width height,
-  gball = newBall
+  gball = newBall,
+  gbricks = newBricks 5
   }
 
 -- Reset all game state except the saved state, and set the mode's start time.
@@ -317,6 +320,7 @@ gameDraw game@Game {..} =
       case gmode of
 
         GameAttract -> do
+          bricksDraw grenderer $ newBricks 19
           let highscore = "High score: " <> T.pack (show $ sshighscore gsaved)
           let msgs = [
                 "",
@@ -332,11 +336,13 @@ gameDraw game@Game {..} =
             -- something seems off with gmodeAge at start, highscore at t=1 appears too close before msg at t=2
 
         GamePlay -> do
+          bricksDraw grenderer gbricks
           batDraw grenderer gbat
           ballDraw grenderer gball
           scoreDraw game
 
         m | m `elem` [GamePause, GamePauseScreenshot] -> do
+          bricksDraw grenderer gbricks
           batDraw grenderer gbat
           ballDraw grenderer gball
           scoreDraw game
@@ -344,6 +350,7 @@ gameDraw game@Game {..} =
             drawTextCenteredAt grenderer fnt2 1 mid unstablered "SPACE to resume"
 
         m | m `elem` [GameOver, GameOverHighScore] -> do
+          bricksDraw grenderer gbricks
           batDraw grenderer gbat
           scoreDraw game
           drawTextCenteredAt grenderer fnt2 1 mid red "GAME OVER"

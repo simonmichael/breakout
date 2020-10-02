@@ -29,6 +29,7 @@ executable sm-breakout
     Game
     Bat
     Ball
+    Brick
     Graphics
     Sound
     Constants
@@ -41,6 +42,7 @@ executable sm-breakout
       ,filepath
       ,file-embed >=0.0.13 && <0.14
       ,optparse-simple >=0.1 && <0.2
+      ,pretty-simple >=4 && <4.1
       ,random >=1.0 && <1.2
       ,safe >=0.3 && <0.4
       ,sdl2 >=2.5 && <2.6

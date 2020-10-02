@@ -22,6 +22,9 @@ import Foreign.C (CInt)
 import Util
 
 black = V4 0 0 0 255 :: Color
+grey2 = V4 64 64 64 255 :: Color
+grey4 = V4 128 128 128 255 :: Color
+grey6 = V4 192 192 192 255 :: Color
 red = V4 255 0 0 255 :: Color
 white = V4 255 255 255 255 :: Color
 
