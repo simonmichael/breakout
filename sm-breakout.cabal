@@ -52,4 +52,4 @@ executable sm-breakout
       ,sdl2-ttf >=2.1.1 && <2.2
       ,text
       ,time
-      ,tini >=0.1.0.0 && <0.2
+      ,tini >=0.1.0.1 && <0.2

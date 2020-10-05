@@ -170,7 +170,7 @@ gameSave :: Game -> IO (Maybe String)
 gameSave Game{gsaved} = handle (\(e::IOException) -> return $ Just $ show e) $ do
   f <- saveFile
   createDirectoryIfMissing True $ takeDirectory f
-  -- writeConfigFile f gsaved  -- https://github.com/valderman/tini/issues/1
+  -- writeConfigFile f gsaved  -- https://github.com/valderman/tini/issues/1, fixed in tini 0.1.0.1
   writeFile f $ show gsaved
   return Nothing    
 
