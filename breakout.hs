@@ -10,25 +10,16 @@ Simon Michael (c) 2007-2020, GPLv3+
 
 module Main where
 
-import Control.Monad
-import Data.List (partition)
-import Data.Text (Text)
 import Options.Applicative.Simple
 import qualified SDL.Framerate as Framerate
-import System.Environment
-import System.Exit (exitSuccess)
 import System.IO (stderr, hPutStrLn)
 
-import Util
 import Constants
 import Game
 import Graphics
 import Sound
-import Data.Word (Word32)
-import Data.Time.Clock
 import Data.Tini.Configurable -- hiding (empty)
 
-import Options.Applicative.Simple
 import qualified Data.Text as T
 
 main :: IO ()
@@ -52,7 +43,7 @@ main = do
   tick0 <- ticks
   let opts = opts'{oendtick = fmap (tick0 +) oendtick}
 
-  withSounds $ \sounds@Sounds{..} -> do
+  withSounds $ \sounds -> do
     withFonts $ \fonts -> do
       window <- createWindow (T.pack progname) defaultWindow{ 
         windowInitialSize = V2 defwindowwidth defwindowheight ,

@@ -7,15 +7,12 @@
 module Game where
 import Control.Exception
 import Control.Monad
-import Control.Monad.IO.Class (MonadIO)
 import Data.List (foldl')
 import qualified Data.Text as T
-import Foreign.C (CInt)
 import Safe
 import SDL hiding (trace)
 import qualified SDL.Framerate as Framerate
 import System.Directory
-import System.Exit (exitSuccess)
 import System.FilePath
 
 import Ball
@@ -25,9 +22,7 @@ import Graphics
 import Sound
 import Constants
 import Util
-import Control.Concurrent (threadDelay)
 import Data.Maybe (fromJust)
-import Data.Function ((&))
 import Data.Tini.Configurable
 import System.IO (stderr, hPutStrLn)
 
@@ -175,7 +170,7 @@ gameSave Game{gsaved} = handle (\(e::IOException) -> return $ Just $ show e) $ d
   return Nothing    
 
 gameLoop :: Game -> IO ()
-gameLoop game@Game{gopts=Opts{oendtick},gwindow,grenderer,gfpsmgr,gsounds,gfonts,gw,gh} = do
+gameLoop game@Game{gopts=Opts{oendtick},gwindow,grenderer,gfpsmgr} = do
   tticks <- ticks
   tnow <- time
   game' <- gameProcessSdlEvents game
@@ -193,7 +188,7 @@ gameLoop game@Game{gopts=Opts{oendtick},gwindow,grenderer,gfpsmgr,gsounds,gfonts
     gameDraw game''
     present grenderer
     game''' <- gamePlayNewSounds game''
-    delay <- Framerate.delay gfpsmgr
+    Framerate.delay gfpsmgr
     gameLoop game'''
   else do
     -- Try to encourage good behaviour when exiting within GHCI.
@@ -258,10 +253,10 @@ gameStep tnow game'@Game{..} =
     m | m `elem` [GameOver, GameOverHighScore]                            
                                         -> dbg "" $ gameQueueSounds batsounds game{gbat = bat}
 
-    otherwise                           -> dbg "" $ game
+    _                                   -> dbg "" $ game
 
 gameStepBat :: Game -> Bat -> (Bat, [Sound])
-gameStepBat game@Game {gsounds = Sounds {..}, gw, gh, gleftPressed, grightPressed} bat@Bat {..} = (bat', sounds)
+gameStepBat Game {gsounds = Sounds {..}, gw, gh, gleftPressed, grightPressed} bat@Bat {..} = (bat', sounds)
   where
     btvx' = if gleftPressed then (max (btvx - btaccel) (- btmaxspeed)) else btvx
     btvx'' = if grightPressed then (min (btvx' + btaccel) (btmaxspeed)) else btvx'
@@ -276,7 +271,7 @@ gameStepBat game@Game {gsounds = Sounds {..}, gw, gh, gleftPressed, grightPresse
 
 gameStepBall :: Game -> Ball -> (Ball, [Sound], Score, Bool)
 gameStepBall
-  game@Game {gsounds = Sounds {..}, gw, gh, gleftPressed, grightPressed, gbat = Bat {..}, gscore}
+  Game {gsounds = Sounds {..}, gw, gh, gbat = Bat {..}, gscore}
   ball@Ball {..} =
     (ball', sounds, gscore', isnewball)
     where
