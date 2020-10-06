@@ -1,32 +1,24 @@
 # roadmap/backlog
 
-- destructible/bouncing bricks
-- level clearance transition
+- simple brick bouncing/destruction
+- levels
 - fractional speeds, positions ?
 - gameplay tuning
+- more sound
 - CI & binaries
+- tag/announce
 
 ## 0.1
 
-## at some point
-- optimise cpu
-- more sound
-- other gameplay elements
+## maybe/someday
+- high quality bouncing
+- hackage release
+- fungen version
+- custom monad version (dino-rush style)
+- FRP version
+- dev how-to
+- optimise
 - make it work when run from emacs shell
 - make it respect Ctrl-c (ghcid --reload, entr -r)
+- other gameplay elements
 - shared high score
-- levels
-- polar coordinates
-- multiball
-- multibat
-- dev how-to
-- tag/announce
-- hackage release
-
-## fungen version
-
-## monadic version (dino-rush style)
-
-## FRP version
-
-## 1.0
