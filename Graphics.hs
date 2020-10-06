@@ -20,9 +20,13 @@ import qualified Data.Text as T
 import Util
 
 black = V4 0 0 0 255 :: Color
+grey1 = V4 32 32 32 255 :: Color
 grey2 = V4 64 64 64 255 :: Color
+grey3 = V4 96 96 96 255 :: Color
 grey4 = V4 128 128 128 255 :: Color
+grey5 = V4 160 160 160 255 :: Color
 grey6 = V4 192 192 192 255 :: Color
+grey7 = V4 224 224 224 255 :: Color
 red = V4 255 0 0 255 :: Color
 white = V4 255 255 255 255 :: Color
 
