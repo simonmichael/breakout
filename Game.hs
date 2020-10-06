@@ -61,6 +61,7 @@ data Game = Game {
   gshiftPPressed :: Bool,
   gleftPressed :: Bool,
   grightPressed :: Bool,
+  gshiftPressed  :: Bool,
   gspacePressed :: Bool,
   -- game state
   gw :: CInt,         -- window dimensions
@@ -101,6 +102,7 @@ newGame opts saved window renderer fpsmgr sounds fonts width height starttime = 
   gshiftPPressed = False,
   gleftPressed = False,
   grightPressed = False,
+  gshiftPressed = False,
   gspacePressed = False,
   --
   gw = width,
@@ -153,6 +155,7 @@ gameClearInput g = g{
   gshiftPPressed = False,
   gleftPressed = False,
   grightPressed = False,
+  gshiftPressed = False,
   gspacePressed = False
   }
 
@@ -218,7 +221,7 @@ gameLoop game@Game{gopts=Opts{oendtick},gwindow,grenderer,gfpsmgr,gframe} = do
 gameProcessSdlEvents :: Game -> IO Game
 gameProcessSdlEvents game = pollEvents >>= return . foldl' processEvent game 
   where
-    processEvent game event
+    processEvent game' event
       | event `isKeyDn` KeycodeQ || event `isKeyDn` KeycodeEscape = game {gQPressed = True}
 
       | event `isKeyDn` KeycodeP && eventHasShift event = game {gshiftPPressed = True}
@@ -226,14 +229,17 @@ gameProcessSdlEvents game = pollEvents >>= return . foldl' processEvent game
       | event `isKeyDn` KeycodeP                        = game {gPPressed = True}
       | event `isKeyUp` KeycodeP                        = game {gPPressed = False}
 
-      | event `isKeyDn` KeycodeLeft = game {gleftPressed = True}
-      | event `isKeyUp` KeycodeLeft = game {gleftPressed = False}
+      | event `isKeyDn` KeycodeLeft  = game {gleftPressed = True}
+      | event `isKeyUp` KeycodeLeft  = game {gleftPressed = False}
       | event `isKeyDn` KeycodeRight = game {grightPressed = True}
       | event `isKeyUp` KeycodeRight = game {grightPressed = False}
       | event `isKeyDn` KeycodeSpace = game {gspacePressed = True}
       | event `isKeyUp` KeycodeSpace = game {gspacePressed = False}
 
       | otherwise = game
+
+      where
+        game = game'{gshiftPressed = eventHasShift event}
 
 gameStep :: Seconds -> FrameNum -> Game -> Game
 gameStep tnow frame game'@Game{..} =
@@ -289,10 +295,16 @@ gameUpdateStats game@Game{..} tnow frame =
     gameModeAgeUpdate tnow game{glastStepTime=tnow, gframe=frame, gfps=gfps', gfpsdisplay=gfpsdisplay'}
 
 gameStepBat :: Game -> Bat -> (Bat, [Sound])
-gameStepBat Game {gsounds = Sounds {..}, gw, gh, gleftPressed, grightPressed} bat@Bat {..} = (bat', sounds)
+gameStepBat Game{..} bat@Bat {..} = (bat', sounds)
   where
-    btvx' = if gleftPressed then (max (btvx - btaccel) (- btmaxspeed)) else btvx
-    btvx'' = if grightPressed then (min (btvx' + btaccel) (btmaxspeed)) else btvx'
+    Sounds{..} = gsounds
+    mult = if gshiftPressed then 2 else 1
+    btvx'
+      | gleftPressed = max (btvx - btaccel) (- btmaxspeed*mult)
+      | otherwise = btvx
+    btvx''
+      | grightPressed = min (btvx' + btaccel) (btmaxspeed*mult)
+      | otherwise = btvx'
     btvx''' =
       if (and [not gleftPressed, not grightPressed])
         then truncate (fromIntegral btvx'' * (1.0 - defbatfriction)) -- friction has little effect because of truncate
@@ -354,6 +366,7 @@ gameDraw game@Game {..} =
                 "",
                 "SPACE to play",
                 "LEFT/RIGHT to move",
+                "SHIFT to move fast",
                 "P to pause",
                 "Q/ESC to quit"
                 ]

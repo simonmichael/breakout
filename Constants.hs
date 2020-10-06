@@ -27,7 +27,7 @@ defwindowwidth = 500 :: CInt
 defwindowheight = 500 :: CInt
 
 defbatfriction = 0.2  -- not much effect right now
-defbatmaxspeed = 4 :: CInt
+defbatmaxspeed = 3 :: CInt
 defbataccel = 1 :: CInt
 defbatwidth = 60 :: CInt
 defbatheight = 10 :: CInt
