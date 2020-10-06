@@ -39,6 +39,7 @@ type Tick = Ticks
 
 type Seconds = Double
 type SDLTime = Seconds
+type FrameNum = Int
 
 type X = CInt
 type Y = CInt

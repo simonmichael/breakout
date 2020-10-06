@@ -25,6 +25,7 @@ import Util
 import Data.Maybe (fromJust)
 import Data.Tini.Configurable
 import System.IO (stderr, hPutStrLn)
+import Text.Printf (printf)
 
 -- Command line options.
 data Opts = Opts
@@ -64,9 +65,14 @@ data Game = Game {
   -- game state
   gw :: CInt,         -- window dimensions
   gh :: CInt,
+  gstartTime :: SDLTime,  -- value of SDL.time at which the program started running
+  glastStepTime :: SDLTime, -- value of SDL.time at which the game loop last stepped
+  gframe :: FrameNum,  -- what drawing frame / game step number is this (how many times have we called Framerate.delay)
+  gfps :: Double,  -- approximate simple moving average of frames drawn per second, updated each step
+  gfpsdisplay :: Double,  -- a copy of gfps updated less often, for display. Clunky!
   gnewsounds :: [Sound], -- new sounds to play
   gmode :: GameMode,  -- current game mode/scene
-  gmodeStartTime :: SDLTime,  -- value of SDL.time at which this mode was entered (excluding Pause mode)
+  gmodeStartTime :: SDLTime,  -- value of SDL.time at which the current (non-Pause) mode was entered
   gmodeAge :: Seconds,  -- how long have we been in this mode (excluding Pause mode)
   gscore :: Score,
   -- game objects
@@ -99,6 +105,11 @@ newGame opts saved window renderer fpsmgr sounds fonts width height starttime = 
   --
   gw = width,
   gh = height,
+  gstartTime = starttime,
+  glastStepTime = starttime,
+  gframe = 0,
+  gfps = 0,
+  gfpsdisplay = 0,
   gnewsounds = [],
   gmode = GameAttract,
   gmodeStartTime = starttime,
@@ -110,11 +121,13 @@ newGame opts saved window renderer fpsmgr sounds fonts width height starttime = 
   gbricks = newBricks 5
   }
 
--- Reset all game state except the saved state, and set the mode's start time.
+-- Reset most game state, except for: 
+-- the saved state, program start time, game last step time, frame count, recent average fps;
+-- and set the mode's start time.
 gameReset :: SDLTime -> Game -> Game
 gameReset tnow Game{..} = 
   (newGame gopts gsaved gwindow grenderer gfpsmgr gsounds gfonts gw gh 0)
-  {gsaved=gsaved, gmodeStartTime=tnow}
+  {gstartTime=gstartTime, glastStepTime=glastStepTime, gframe=gframe, gfps=gfps, gsaved=gsaved, gmodeStartTime=tnow}
 
 -- Switch the game mode, setting the new mode's start time and age.
 gameModeSwitch :: SDLTime -> GameMode -> Game -> Game
@@ -170,11 +183,14 @@ gameSave Game{gsaved} = handle (\(e::IOException) -> return $ Just $ show e) $ d
   return Nothing    
 
 gameLoop :: Game -> IO ()
-gameLoop game@Game{gopts=Opts{oendtick},gwindow,grenderer,gfpsmgr} = do
+gameLoop game@Game{gopts=Opts{oendtick},gwindow,grenderer,gfpsmgr,gframe} = do
   tticks <- ticks
   tnow <- time
+  -- frame <- Framerate.count gfpsmgr  -- resets to zero now and then, reason unknown
+  -- when (frame < gframe) $ error $ "gframe: " ++ show gframe ++ " frame: " ++ show frame
+  let frame = gframe+1
   game' <- gameProcessSdlEvents game
-  let game'' = gameStep tnow game'
+  let game'' = gameStep tnow frame game'
 
   -- save high score if it has changed
   when (sshighscore (gsaved game'') /= sshighscore (gsaved game)) $ do
@@ -188,7 +204,7 @@ gameLoop game@Game{gopts=Opts{oendtick},gwindow,grenderer,gfpsmgr} = do
     gameDraw game''
     present grenderer
     game''' <- gamePlayNewSounds game''
-    Framerate.delay gfpsmgr
+    _elapsed <- Framerate.delay gfpsmgr
     gameLoop game'''
   else do
     -- Try to encourage good behaviour when exiting within GHCI.
@@ -219,14 +235,16 @@ gameProcessSdlEvents game = pollEvents >>= return . foldl' processEvent game
 
       | otherwise = game
 
-gameStep :: Seconds -> Game -> Game
-gameStep tnow game'@Game{..} =
+gameStep :: Seconds -> FrameNum -> Game -> Game
+gameStep tnow frame game'@Game{..} =
   let 
-    game = gameModeAgeUpdate tnow game'
+    game = gameUpdateStats game' tnow frame
     (bat, batsounds) = gameStepBat game gbat
     (ball, ballsounds, score, gameover) = gameStepBall game gball
     gameQuit = gameQueueSound sndballLoss $ gameReset tnow game
-    dbg msg = if odebug gopts then trace (show gmode++" "++msg) else id
+    dbg 
+      --  | odebug gopts = \msg -> trace (show gmode++" "++msg)
+      | otherwise = const id
     SavedState{sshighscore} = gsaved
 
   in case gmode of
@@ -254,6 +272,21 @@ gameStep tnow game'@Game{..} =
                                         -> dbg "" $ gameQueueSounds batsounds game{gbat = bat}
 
     _                                   -> dbg "" $ game
+
+-- Update game's last step time, FPS, age of current game mode, etc.
+gameUpdateStats :: Game -> Seconds -> FrameNum -> Game
+gameUpdateStats game@Game{..} tnow frame =
+  let
+    fpssamples = 10
+    fpsdisplayupdatesps = 4
+    lastframetime = tnow - glastStepTime
+    lastfps = 1 / lastframetime
+    gfps' = gfps * (fpssamples-1)/fpssamples + lastfps/fpssamples
+    gfpsdisplay' =
+      if frame `mod` (framerate `div` fpsdisplayupdatesps) == 0
+      then gfps' else gfpsdisplay
+  in
+    gameModeAgeUpdate tnow game{glastStepTime=tnow, gframe=frame, gfps=gfps', gfpsdisplay=gfpsdisplay'}
 
 gameStepBat :: Game -> Bat -> (Bat, [Sound])
 gameStepBat Game {gsounds = Sounds {..}, gw, gh, gleftPressed, grightPressed} bat@Bat {..} = (bat', sounds)
@@ -329,25 +362,29 @@ gameDraw game@Game {..} =
           drawTextCenteredAt grenderer fnt2 1 (mid + V2 0 0) red msg
           drawTextCenteredAt grenderer fnt2 1 (mid + V2 0 100) white highscore -- & when (gmodeAge > 1)
             -- something seems off with gmodeAge at start, highscore at t=1 appears too close before msg at t=2
+          debugInfoDraw game
 
         GamePlay -> do
           bricksDraw grenderer gbricks
           batDraw grenderer gbat
           ballDraw grenderer gball
           scoreDraw game
+          debugInfoDraw game
 
         m | m `elem` [GamePause, GamePauseScreenshot] -> do
           bricksDraw grenderer gbricks
           batDraw grenderer gbat
           ballDraw grenderer gball
           scoreDraw game
+          debugInfoDraw game
           unless (m==GamePauseScreenshot) $
             drawTextCenteredAt grenderer fnt2 1 mid unstablered "SPACE to resume"
-
+  
         m | m `elem` [GameOver, GameOverHighScore] -> do
           bricksDraw grenderer gbricks
           batDraw grenderer gbat
           scoreDraw game
+          debugInfoDraw game
           drawTextCenteredAt grenderer fnt2 1 mid red "GAME OVER"
           when (m==GameOverHighScore) $
             drawTextCenteredAt grenderer fnt2 1 (mid + V2 0 100) white $ "New high score !"
@@ -359,6 +396,19 @@ scoreDraw Game {grenderer, gfonts = Fonts {..}, gw, gh, gscore} = do
     font = fnt2
     scale = 1
   (tw, th) <- both (scale*) <$> textSize font t
-  let (tx, ty) = (gw - 10 - tw, gh - 10 - th)
+  let (tx, ty) = (gw - 5 - tw, gh - 5 - th)
+      rect = Rectangle (P $ V2 tx ty) (V2 tw th)
+  drawText grenderer font white rect t
+
+debugInfoDraw :: Game -> IO ()
+debugInfoDraw Game {..} = do
+  let 
+    font = fnt1 gfonts
+    scale = 1
+    t | gfpsdisplay == 0 = ""
+      | otherwise        = T.pack $ printf "FPS: %0.f" gfpsdisplay
+      -- "FPS: %0.1f frame: %d" gfps gframe
+  (tw, th) <- both (scale*) <$> textSize font t
+  let (tx, ty) = (5, gh - 5 - th)
       rect = Rectangle (P $ V2 tx ty) (V2 tw th)
   drawText grenderer font white rect t
