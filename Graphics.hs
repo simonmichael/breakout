@@ -10,7 +10,6 @@ module Graphics (
       module SDL.Primitive
 )
 where
-import Data.Word (Word8)
 import Data.FileEmbed
 import SDL hiding (trace)
 import qualified SDL.Font
@@ -18,7 +17,6 @@ import SDL.Font hiding (Mono,Normal,Color,initialize,quit,version)
 import SDL.Primitive
 import Control.Monad.IO.Class (MonadIO)
 import qualified Data.Text as T
-import Foreign.C (CInt)
 import Util
 
 black = V4 0 0 0 255 :: Color

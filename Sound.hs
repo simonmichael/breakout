@@ -9,7 +9,6 @@ import Data.FileEmbed
 import SDL.Mixer
 import Control.Monad (when)
 
-import Util
 import Data.Maybe (isJust)
 
 

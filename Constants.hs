@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Constants
 where
-import qualified Data.Text as T
 import Foreign.C (CInt)
 -- import SDL hiding (trace)
 -- import qualified SDL.Framerate as Framerate
