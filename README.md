@@ -35,11 +35,13 @@ While it continues... this project's goals are:
 - Experiment with tools, techniques, architectures, practices
 - Minimise toil, maximise fun
 
+<!--
 and secondary/stretch goals would be:
 
 - Provide new, maintained examples of a small haskell game implemented several ways, useful for learning or as starter templates, perhaps some docs
 - Produce a more fun and impressive game that raises the bar for haskell games
 - Stimulate more haskell game development
+-->
 
 ## Help
 

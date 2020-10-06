@@ -1,15 +1,17 @@
 # roadmap/backlog
 
-- fractional speeds
+- destructible/bouncing bricks
+- level clearance transition
+- fractional speeds, positions ?
 - gameplay tuning
-- optimise cpu
-- more sound
 - CI & binaries
 
 ## 0.1
 
 ## at some point
-- bricks / other gameplay elements
+- optimise cpu
+- more sound
+- other gameplay elements
 - make it work when run from emacs shell
 - make it respect Ctrl-c (ghcid --reload, entr -r)
 - shared high score
