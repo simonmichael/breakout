@@ -1,9 +1,8 @@
-resolver: nightly-2020-09-16
+resolver: lts-18.10
 
 packages:
 - .
 
 extra-deps:
-- pretty-simple-4.0.0.0
-- prettyprinter-1.7.0
+- random-1.1
 - tini-0.1.0.1
