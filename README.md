@@ -17,7 +17,8 @@ This was one of my first Haskell projects, in 2007, now updated in 2020.
 
 ## Install
 
-1. Install SDL 2 libs for your system ([1], [2], `brew install sdl2`, or similar)
+1. Install all of the main SDL 2 libs for your system ([1], [2]).
+   Eg on mac: `brew install sdl2 sdl2_gfx sdl2_image sdl2_mixer sdl2_ttf` (but I'm having trouble with this on m1..)
 2. `gh repo clone simonmichael/sm-breakout`
 3. `cd sm-breakout`
 4. `stack run`
